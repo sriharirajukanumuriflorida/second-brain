@@ -1,0 +1,418 @@
+{
+  "choices": [
+    {
+      "id": "7529d01e-6ac3-4ddb-ae6b-e41d87181ebc",
+      "name": "New Literature Note",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "New Literature Note",
+        "id": "090d7b17-b63b-4055-b0e3-ad405ec200eb",
+        "commands": [
+          {
+            "name": "Literature Note Choice",
+            "type": "NestedChoice",
+            "id": "5439aa31-0852-4e62-98d2-0da269316cbb",
+            "choice": {
+              "id": "ee8c99a5-11a9-4420-be63-86f8b5d3269c",
+              "name": "Literature Note Choice",
+              "type": "Template",
+              "command": false,
+              "templatePath": "06 Templates/Literature Note Template.md",
+              "fileNameFormat": {
+                "enabled": true,
+                "format": "LN - {{DATE:YYYY-MM-DD}} - {{VALUE:title}}"
+              },
+              "folder": {
+                "enabled": true,
+                "folders": [
+                  "",
+                  "02 Literature Notes"
+                ],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": false,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsBehavior": {
+                "kind": "prompt"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "fce3711f-127c-4abc-9241-f3a62234da61",
+      "name": "New Permanent Note",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "New Permanent Note",
+        "id": "c44b3517-cf6e-427a-be0b-cc0c05dd5f6a",
+        "commands": [
+          {
+            "name": "Permanent Note Template Choice",
+            "type": "NestedChoice",
+            "id": "a6079ad8-d618-49f0-8b33-318b765e44e4",
+            "choice": {
+              "id": "6124cb4b-04ac-45f3-99eb-3723ac0a4bd9",
+              "name": "Permanent Note Template Choice",
+              "type": "Template",
+              "command": false,
+              "templatePath": "06 Templates/Permanent Note Template.md",
+              "fileNameFormat": {
+                "enabled": true,
+                "format": "PN - {{DATE:YYYYMMDD}} - {{VALUE:title}}"
+              },
+              "folder": {
+                "enabled": true,
+                "folders": [
+                  "",
+                  "03 Permanent Notes"
+                ],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": false,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsBehavior": {
+                "kind": "prompt"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "feb6f8e8-ec62-4739-a75b-4cf24c582c68",
+      "name": "New Code Snippet",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "New Code Snippet",
+        "id": "a4791570-1833-4dc1-b643-3bdc4b3cc62d",
+        "commands": [
+          {
+            "name": "Code Snippet Template Choice",
+            "type": "NestedChoice",
+            "id": "17b53864-2d35-422c-b86d-d3bcadb35216",
+            "choice": {
+              "id": "8ec2329a-35a5-49e0-b75e-00cfa77c3c06",
+              "name": "Code Snippet Template Choice",
+              "type": "Template",
+              "command": false,
+              "templatePath": "06 Templates/Code Snippet Template.md",
+              "fileNameFormat": {
+                "enabled": true,
+                "format": "CS - {{DATE:YYYYMMDD}} - {{VALUE:title}}"
+              },
+              "folder": {
+                "enabled": true,
+                "folders": [],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": false,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsBehavior": {
+                "kind": "prompt"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "c7218a64-f2b9-4304-b9c2-6e7813180193",
+      "name": "New ML Project",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "New ML Project",
+        "id": "0b59e26e-a818-4a38-8dd9-cabe553beffd",
+        "commands": [
+          {
+            "name": "ML Project Template Choice",
+            "type": "NestedChoice",
+            "id": "5cf0d929-c0b4-4c1a-a8e3-9571437ffa06",
+            "choice": {
+              "id": "a736930f-43ff-48b7-a00d-f7ca5ad089ff",
+              "name": "ML Project Template Choice",
+              "type": "Template",
+              "command": false,
+              "templatePath": "06 Templates/ML Project Template.md",
+              "fileNameFormat": {
+                "enabled": true,
+                "format": "{{VALUE:title}}"
+              },
+              "folder": {
+                "enabled": true,
+                "folders": [
+                  "05 Projects"
+                ],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": false,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsBehavior": {
+                "kind": "prompt"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "171f5417-23f5-4fbc-b6ed-4d099e71cd42",
+      "name": "New Experiment",
+      "type": "Macro",
+      "command": true,
+      "runOnStartup": false,
+      "macro": {
+        "name": "New Experiment",
+        "id": "146ae469-8c71-41d4-a970-ed6fcba9ef85",
+        "commands": [
+          {
+            "name": "New Experiment Template Choice",
+            "type": "NestedChoice",
+            "id": "146aa56c-5b85-449d-bb1f-96589d1e68fa",
+            "choice": {
+              "id": "fd078087-7303-4c95-9c56-7930c8910df1",
+              "name": "New Experiment Template Choice",
+              "type": "Template",
+              "command": false,
+              "templatePath": "06 Templates/Experiment Template.md",
+              "fileNameFormat": {
+                "enabled": true,
+                "format": "{{VALUE:id}}"
+              },
+              "folder": {
+                "enabled": true,
+                "folders": [
+                  "05 Projects/Experiments"
+                ],
+                "chooseWhenCreatingNote": false,
+                "createInSameFolderAsActiveFile": false,
+                "chooseFromSubfolders": false
+              },
+              "appendLink": false,
+              "openFile": false,
+              "fileOpening": {
+                "location": "tab",
+                "direction": "vertical",
+                "mode": "default",
+                "focus": true
+              },
+              "fileExistsBehavior": {
+                "kind": "prompt"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "4c101a88-913d-4633-bca4-c4e0f32aa357",
+      "name": "Capture Variable",
+      "type": "Capture",
+      "command": true,
+      "appendLink": false,
+      "captureTo": "EXP-{{DATE:YYYYMMDD}}-{{TIME:HHmmss}}",
+      "captureToActiveFile": false,
+      "captureToCanvasNodeId": "",
+      "activeFileWritePosition": "cursor",
+      "createFileIfItDoesntExist": {
+        "enabled": false,
+        "createWithTemplate": false,
+        "template": ""
+      },
+      "format": {
+        "enabled": false,
+        "format": ""
+      },
+      "insertAfter": {
+        "enabled": false,
+        "after": "",
+        "insertAtEnd": false,
+        "considerSubsections": false,
+        "createIfNotFound": false,
+        "createIfNotFoundLocation": "top",
+        "inline": false,
+        "replaceExisting": false,
+        "blankLineAfterMatchMode": "auto"
+      },
+      "newLineCapture": {
+        "enabled": false,
+        "direction": "below"
+      },
+      "prepend": false,
+      "task": false,
+      "openFile": false,
+      "fileOpening": {
+        "location": "tab",
+        "direction": "vertical",
+        "mode": "default",
+        "focus": true
+      },
+      "templater": {
+        "afterCapture": "none"
+      }
+    },
+    {
+      "id": "a0bcded7-68bc-4391-9ee3-49789c3fc6ef",
+      "name": "Add Related Notes",
+      "type": "Multi",
+      "command": true,
+      "choices": [],
+      "collapsed": false
+    }
+  ],
+  "inputPrompt": "single-line",
+  "persistInputPromptDrafts": true,
+  "useSelectionAsCaptureValue": true,
+  "devMode": false,
+  "templateFolderPath": "06 Templates",
+  "announceUpdates": "major",
+  "version": "2.12.3",
+  "globalVariables": {},
+  "onePageInputEnabled": false,
+  "disableOnlineFeatures": true,
+  "enableRibbonIcon": false,
+  "showCaptureNotification": true,
+  "showInputCancellationNotification": false,
+  "enableTemplatePropertyTypes": false,
+  "dateAliases": {
+    "t": "today",
+    "tm": "tomorrow",
+    "yd": "yesterday",
+    "nw": "next week",
+    "nm": "next month",
+    "ny": "next year",
+    "lw": "last week",
+    "lm": "last month",
+    "ly": "last year"
+  },
+  "ai": {
+    "defaultModel": "Ask me",
+    "defaultSystemPrompt": "As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\\text{new}}:=w_{ij}^{\\text{current}}+\\eta\\cdot\\delta_j\\cdot x_{ij}$$ on a separate line, but you can write \"($\\eta$ = learning rate, $\\delta_j$ = error term, $x_{ij}$ = input)\" inline.",
+    "promptTemplatesFolderPath": "",
+    "showAssistant": true,
+    "providers": [
+      {
+        "name": "OpenAI",
+        "endpoint": "https://api.openai.com/v1",
+        "apiKey": "",
+        "models": [
+          {
+            "name": "gpt-3.5-turbo",
+            "maxTokens": 4096
+          },
+          {
+            "name": "gpt-3.5-turbo-16k",
+            "maxTokens": 16384
+          },
+          {
+            "name": "gpt-3.5-turbo-1106",
+            "maxTokens": 16385
+          },
+          {
+            "name": "gpt-4",
+            "maxTokens": 8192
+          },
+          {
+            "name": "gpt-4-32k",
+            "maxTokens": 32768
+          },
+          {
+            "name": "gpt-4-1106-preview",
+            "maxTokens": 128000
+          },
+          {
+            "name": "gpt-4-turbo",
+            "maxTokens": 128000
+          },
+          {
+            "name": "gpt-4o",
+            "maxTokens": 128000
+          },
+          {
+            "name": "gpt-4o-mini",
+            "maxTokens": 128000
+          }
+        ],
+        "autoSyncModels": false,
+        "modelSource": "modelsDev"
+      },
+      {
+        "name": "Gemini",
+        "endpoint": "https://generativelanguage.googleapis.com",
+        "apiKey": "",
+        "models": [
+          {
+            "name": "gemini-1.5-pro",
+            "maxTokens": 1000000
+          },
+          {
+            "name": "gemini-1.5-flash",
+            "maxTokens": 1000000
+          },
+          {
+            "name": "gemini-1.5-flash-8b",
+            "maxTokens": 1000000
+          }
+        ],
+        "autoSyncModels": false,
+        "modelSource": "modelsDev"
+      }
+    ]
+  },
+  "migrations": {
+    "migrateToMacroIDFromEmbeddedMacro": true,
+    "useQuickAddTemplateFolder": true,
+    "incrementFileNameSettingMoveToDefaultBehavior": true,
+    "consolidateFileExistsBehavior": true,
+    "repairTemplateFileExistsBehavior": true,
+    "mutualExclusionInsertAfterAndWriteToBottomOfFile": true,
+    "setVersionAfterUpdateModalRelease": true,
+    "addDefaultAIProviders": true,
+    "removeMacroIndirection": true,
+    "migrateFileOpeningSettings": true,
+    "backfillFileOpeningDefaults": true,
+    "setProviderModelDiscoveryMode": true,
+    "migrateProviderApiKeysToSecretStorage": true
+  }
+}
