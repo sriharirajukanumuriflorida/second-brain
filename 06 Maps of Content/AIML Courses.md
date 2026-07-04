@@ -9,6 +9,15 @@
 - [[02 Literature Notes/Courses/Capstone]]
 - [[02 Literature Notes/Courses/Extra AIML Resources]]
 
+## Concept Maps
+- [[06 Maps of Content/Python Concepts]]
+- [[06 Maps of Content/Applied Data Science Concepts]]
+- [[06 Maps of Content/Machine Learning Concepts]]
+- [[06 Maps of Content/Deep Learning Concepts]]
+- [[06 Maps of Content/Generative AI Concepts]]
+- [[06 Maps of Content/Capstone Projects]]
+- [[06 Maps of Content/ML Snippets]]
+
 ## Resource Library
 - `07 Resources Library/Python Refresher/`
 - `07 Resources Library/Applied Data Science/`
@@ -21,7 +30,7 @@
 ## Suggested Workflow
 1. Start in a course note.
 2. Open the matching raw materials in `07 Resources Library/`.
-3. Create lesson summaries in `02 Literature Notes/Courses/`.
+3. Read the lesson notes in `02 Literature Notes/Courses/`.
 4. Distill durable ideas into `03 Permanent Notes/`.
-5. Save reusable code in `04 Code Snippets/ML/`.
+5. Save reusable code in `04 Code Snippets/`.
 6. Link project work into `05 Projects/`.

@@ -6,7 +6,43 @@
   "hideUnresolved": false,
   "showOrphans": true,
   "collapse-color-groups": true,
-  "colorGroups": [],
+  "colorGroups": [
+    {
+      "query": "path:\"06 Maps of Content\"",
+      "color": {
+        "a": 1,
+        "rgb": 16750848
+      }
+    },
+    {
+      "query": "path:\"03 Permanent Notes\"",
+      "color": {
+        "a": 1,
+        "rgb": 5024080
+      }
+    },
+    {
+      "query": "path:\"05 Projects\"",
+      "color": {
+        "a": 1,
+        "rgb": 16007990
+      }
+    },
+    {
+      "query": "path:\"04 Code Snippets\"",
+      "color": {
+        "a": 1,
+        "rgb": 10233776
+      }
+    },
+    {
+      "query": "path:\"02 Literature Notes\"",
+      "color": {
+        "a": 1,
+        "rgb": 2201331
+      }
+    }
+  ],
   "collapse-display": false,
   "showArrow": false,
   "textFadeMultiplier": -0.1,

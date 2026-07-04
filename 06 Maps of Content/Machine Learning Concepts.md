@@ -1,21 +1,9 @@
-# Machine Learning
+# Machine Learning Concepts
 
-## Resource Folder
-`07 Resources Library/Machine Learning/`
+## Course Entry
+- [[02 Literature Notes/Courses/Machine Learning]]
 
-## Imported Materials
-- Slides: 7
-- Notebooks: 9
-- Capstones: 4 (sessions)
-
-## Focus Areas
-- Supervised learning and regression
-- Classification
-- Ensemble learning
-- Unsupervised learning (clustering, dimensionality reduction)
-- Recommendation systems
-
-## Lesson Notes
+## Lessons
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 01 Course Introduction]]
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 02 Introduction to Machine Learning]]
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 03 Supervised Learning and Regression]]
@@ -24,9 +12,18 @@
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 06 Unsupervised Learning]]
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 07 Recommendation Systems]]
 
-## Related Maps
-- [[06 Maps of Content/Machine Learning Concepts]]
+## Suggested Reading Order
+1. Introduction to Machine Learning
+2. Supervised Learning and Regression
+3. Classification and Its Applications
+4. Ensemble Learning
+5. Unsupervised Learning
+6. Recommendation Systems
 
-## Next Notes
-- Distill durable ML concepts into `03 Permanent Notes/`.
-- Save reusable model patterns in `04 Code Snippets/ML/`.
+## Suggested Permanent Notes to Distill
+- Supervised vs unsupervised learning
+- Regression metrics (MSE, RMSE, R-squared)
+- Classification metrics (precision, recall, F1)
+- Bagging vs boosting
+- Clustering and dimensionality reduction (PCA)
+- Collaborative vs content-based recommendation

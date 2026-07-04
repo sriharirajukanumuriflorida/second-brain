@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "type": "group",
+      "title": "Maps of Content",
+      "items": [
+        { "type": "file", "title": "AIML Courses", "path": "06 Maps of Content/AIML Courses.md" },
+        { "type": "file", "title": "Python Concepts", "path": "06 Maps of Content/Python Concepts.md" },
+        { "type": "file", "title": "Applied Data Science Concepts", "path": "06 Maps of Content/Applied Data Science Concepts.md" },
+        { "type": "file", "title": "Machine Learning Concepts", "path": "06 Maps of Content/Machine Learning Concepts.md" },
+        { "type": "file", "title": "Deep Learning Concepts", "path": "06 Maps of Content/Deep Learning Concepts.md" },
+        { "type": "file", "title": "Generative AI Concepts", "path": "06 Maps of Content/Generative AI Concepts.md" },
+        { "type": "file", "title": "Capstone Projects", "path": "06 Maps of Content/Capstone Projects.md" },
+        { "type": "file", "title": "ML Snippets", "path": "06 Maps of Content/ML Snippets.md" }
+      ]
+    }
+  ]
+}
