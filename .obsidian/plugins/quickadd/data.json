@@ -19,7 +19,7 @@
               "name": "Literature Note Choice",
               "type": "Template",
               "command": false,
-              "templatePath": "06 Templates/Literature Note Template.md",
+              "templatePath": "09 Templates/Literature Note Template.md",
               "fileNameFormat": {
                 "enabled": true,
                 "format": "LN - {{DATE:YYYY-MM-DD}} - {{VALUE:title}}"
@@ -69,7 +69,7 @@
               "name": "Permanent Note Template Choice",
               "type": "Template",
               "command": false,
-              "templatePath": "06 Templates/Permanent Note Template.md",
+              "templatePath": "09 Templates/Permanent Note Template.md",
               "fileNameFormat": {
                 "enabled": true,
                 "format": "PN - {{DATE:YYYYMMDD}} - {{VALUE:title}}"
@@ -119,7 +119,7 @@
               "name": "Code Snippet Template Choice",
               "type": "Template",
               "command": false,
-              "templatePath": "06 Templates/Code Snippet Template.md",
+              "templatePath": "09 Templates/Code Snippet Template.md",
               "fileNameFormat": {
                 "enabled": true,
                 "format": "CS - {{DATE:YYYYMMDD}} - {{VALUE:title}}"
@@ -166,7 +166,7 @@
               "name": "ML Project Template Choice",
               "type": "Template",
               "command": false,
-              "templatePath": "06 Templates/ML Project Template.md",
+              "templatePath": "09 Templates/ML Project Template.md",
               "fileNameFormat": {
                 "enabled": true,
                 "format": "{{VALUE:title}}"
@@ -215,7 +215,7 @@
               "name": "New Experiment Template Choice",
               "type": "Template",
               "command": false,
-              "templatePath": "06 Templates/Experiment Template.md",
+              "templatePath": "09 Templates/Experiment Template.md",
               "fileNameFormat": {
                 "enabled": true,
                 "format": "{{VALUE:id}}"
@@ -305,7 +305,7 @@
   "persistInputPromptDrafts": true,
   "useSelectionAsCaptureValue": true,
   "devMode": false,
-  "templateFolderPath": "06 Templates",
+  "templateFolderPath": "09 Templates",
   "announceUpdates": "major",
   "version": "2.12.3",
   "globalVariables": {},

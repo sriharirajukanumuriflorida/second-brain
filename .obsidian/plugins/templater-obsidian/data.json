@@ -1,6 +1,6 @@
 {
   "command_timeout": 5,
-  "templates_folder": "06 Templates",
+  "templates_folder": "09 Templates",
   "templates_pairs": [
     [
       "",
@@ -29,9 +29,9 @@
   "syntax_highlighting": true,
   "syntax_highlighting_mobile": true,
   "enabled_templates_hotkeys": [
-    "06 Templates/Literature Note Template.md.md",
-    "06 Templates/Permanent Note Template.md.md",
-    "06 Templates/Code Snippet Template.md.md"
+    "09 Templates/Literature Note Template.md.md",
+    "09 Templates/Permanent Note Template.md.md",
+    "09 Templates/Code Snippet Template.md.md"
   ],
   "startup_templates": [
     "",

@@ -5,19 +5,19 @@
   "daily": {
     "format": "YYYY-MM-DD",
     "folder": "01 Daily Notes",
-    "template": "06 Templates/Daily Note Template.md",
+    "template": "09 Templates/Daily Note Template.md",
     "enabled": true
   },
   "weekly": {
     "format": "gggg-[W]ww",
-    "template": "06 Templates/Weekly Note Template.md",
-    "folder": "06 Templates",
+    "template": "09 Templates/Weekly Note Template.md",
+    "folder": "01 Daily Notes",
     "enabled": true
   },
   "monthly": {
     "format": "YYYY-MM",
-    "template": "06 Templates/Monthly Note Template.md",
-    "folder": "06 Templates",
+    "template": "09 Templates/Monthly Note Template.md",
+    "folder": "01 Daily Notes",
     "enabled": true
   },
   "quarterly": {

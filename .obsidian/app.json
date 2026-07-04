@@ -1,3 +1,11 @@
 {
-  "tabSize": 4
+  "tabSize": 4,
+  "attachmentFolderPath": "08 Attachments",
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false,
+  "alwaysUpdateLinks": true,
+  "showUnsupportedFiles": false,
+  "userIgnoreFilters": [
+    "07 Resources Library/**/Datasets/"
+  ]
 }
