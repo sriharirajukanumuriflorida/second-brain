@@ -52,9 +52,25 @@
 
 ---
 
+## Week 22 — LLMOps, Monitoring, Cost & Reliability
+> Running the deployed system in production: SLOs, observability, drift, cost, and incident response.
+
+### Week 22a — Reference Patterns
+- ✅ [[02 Literature Notes/AI Architecture/LLMOps, Monitoring, Cost & Reliability — Reference Patterns]]
+  - LLMOps loop vs classical SRE · OTel spans + AI-specific attributes · LangSmith/LangFuse/Arize · AI-native SLOs (groundedness, faithfulness, refusal, cost/req) · TPM/RPM/PTU management · semantic cache · dual-provider fallback · drift detection · eval regression gate
+  - Snippets: [[04 Code Snippets/AI Architecture/AI Week 22a LLM Request Tracer With Cost Accounting]] · [[04 Code Snippets/AI Architecture/AI Week 22a SLO and Cost Budget Guard]]
+  - Permanent: [[03 Permanent Notes/AI Week 22a LLM Observability Attribute Reference]] · [[03 Permanent Notes/AI Week 22a AI SLO Design Guide]]
+
+### Week 22b — Applied (operate the W20 deployment)
+- ✅ [[02 Literature Notes/AI Architecture/LLMOps, Monitoring, Cost & Reliability — Applied]]
+  - Insurance-underwriter SLO contract (99.5% avail, p95 ≤ 6s, grounded ≥ 92%, cost ≤ $0.08/query) · instrumentation on the Azure topology · PTU-vs-Standard break-even math at 200 users · drift sources (query/corpus/silent model) with detection · 3 real incidents (2am groundedness drop, cost spike, prompt injection) with on-call runbooks · weekly customer report format
+  - Snippets: [[04 Code Snippets/AI Architecture/AI Week 22b Underwriter SLO Dashboard Evaluator]] · [[04 Code Snippets/AI Architecture/AI Week 22b AI Incident Response Classifier and Runbook Selector]]
+  - Permanent: [[03 Permanent Notes/AI Week 22b Customer SLO Contract for Enterprise AI]] · [[03 Permanent Notes/AI Week 22b Enterprise AI On-Call Runbook Bundle]]
+
+---
+
 ## Planned (Phase 4 continued)
 - ⬜ Week 21 — Security, Governance & Responsible AI (PII/DLP, RBAC/ABAC, prompt injection defenses, audit, compliance, responsible AI principles)
-- ⬜ Week 22 — LLMOps, Monitoring, Cost & Reliability (observability, SLOs, drift, evaluation regression, incident handling)
 
 ## Roadmap position
 - Prerequisite: [[06 Maps of Content/Software Engineering Concepts]] (Phase 1 + Depth Pass) — the engineering foundation this architecture layer sits on.
