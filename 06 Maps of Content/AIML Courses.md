@@ -18,8 +18,10 @@
 - [[06 Maps of Content/Capstone Projects]]
 - [[06 Maps of Content/ML Snippets]]
 - [[06 Maps of Content/LLM Engineering Concepts]]
+- [[06 Maps of Content/Software Engineering Concepts]]
 
 ## Resource Library
+- `07 Resources Library/Software Engineering/`
 - `07 Resources Library/Python Refresher/`
 - `07 Resources Library/Applied Data Science/`
 - `07 Resources Library/Machine Learning/`
