@@ -19,8 +19,10 @@
 - [[06 Maps of Content/ML Snippets]]
 - [[06 Maps of Content/LLM Engineering Concepts]]
 - [[06 Maps of Content/Software Engineering Concepts]]
+- [[06 Maps of Content/AI Architecture Concepts]]
 
 ## Resource Library
+- `07 Resources Library/AI Architecture/`
 - `07 Resources Library/Software Engineering/`
 - `07 Resources Library/Python Refresher/`
 - `07 Resources Library/Applied Data Science/`
