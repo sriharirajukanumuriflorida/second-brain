@@ -46,6 +46,35 @@
 
 ---
 
+## Phase 1 Depth Pass — Production Reality
+> Complements the Phase 1 refreshers with what real production teams actually implement. Notebooks use real FastAPI, Pydantic v2, SQLAlchemy, PyJWT, and OpenTelemetry (all in-process via TestClient / in-memory SQLite / in-memory span exporter — no network).
+
+### Week 01+ — Production Delivery Engineering
+- ✅ [[02 Literature Notes/Software Engineering/Production Delivery Engineering]]
+  - GitHub Actions · pre-commit · trunk-based dev · conventional commits · SemVer · coverage/mutation gates · SAST/SCA · feature flags · contract testing · blue/green · canary · monorepo vs polyrepo
+  - Snippets: [[04 Code Snippets/Software Engineering/SE Week 01+ GitHub Actions Delivery Workflow Validator]] · [[04 Code Snippets/Software Engineering/SE Week 01+ Deterministic Feature Flag Rollout Evaluator]]
+  - Permanent: [[03 Permanent Notes/SE Week 01+ CI CD Pipeline Design Checklist]] · [[03 Permanent Notes/SE Week 01+ Deployment Strategies Decision Guide]]
+
+### Week 02+ — Distributed Systems Reality
+- ✅ [[02 Literature Notes/Software Engineering/Distributed Systems Reality]]
+  - CAP/PACELC · consistency levels · idempotency keys · outbox · saga · CQRS · circuit breakers · bulkheads · backpressure · cache stampede · consistent hashing · capacity math · leader election
+  - Snippets: [[04 Code Snippets/Software Engineering/SE Week 02+ Idempotency Key Middleware Simulation]] · [[04 Code Snippets/Software Engineering/SE Week 02+ Token Bucket Circuit Breaker]]
+  - Permanent: [[03 Permanent Notes/SE Week 02+ Distributed Systems Failure Playbook]] · [[03 Permanent Notes/SE Week 02+ Capacity Estimation Cheat Sheet]]
+
+### Week 03+ — Applied Data Structures for Backend & AI
+- ✅ [[02 Literature Notes/Software Engineering/Applied Data Structures for Backend and AI]]
+  - Heap/top-K · trie · union-find · Bloom · Count-Min · HyperLogLog · LRU/LFU/ARC/TinyLFU · consistent hashing · skip list · B-tree vs LSM · Merkle · sliding window
+  - Snippets: [[04 Code Snippets/Software Engineering/SE Week 03+ Bloom Filter False Positive Demo]] · [[04 Code Snippets/Software Engineering/SE Week 03+ Heap Top K Vector Retriever]]
+  - Permanent: [[03 Permanent Notes/SE Week 03+ Probabilistic Data Structures Cheat Sheet]] · [[03 Permanent Notes/SE Week 03+ B-Tree vs LSM-Tree Decision Guide]]
+
+### Week 04+ — Production API and Backend Patterns
+- ✅ [[02 Literature Notes/Software Engineering/Production API and Backend Patterns]]
+  - OpenAPI · Pydantic v2 · OAuth2+PKCE · OIDC · JWT vs opaque · refresh rotation · RBAC/ABAC · idempotency-key · cursor pagination · ETags · rate limiting · retry+jitter · OpenTelemetry · N+1 · isolation levels · optimistic locking
+  - Snippets: [[04 Code Snippets/Software Engineering/SE Week 04+ FastAPI JWT Rate Limit Idempotency Demo]] · [[04 Code Snippets/Software Engineering/SE Week 04+ OpenTelemetry Retry With Jitter Demo]]
+  - Permanent: [[03 Permanent Notes/SE Week 04+ Production API Design Checklist]] · [[03 Permanent Notes/SE Week 04+ OAuth2 OIDC and Token Patterns]]
+
+---
+
 ## Roadmap position
 - Phase 1 (this track) is the foundation for the AI/LLM layer in [[06 Maps of Content/LLM Engineering Concepts]].
 - Next FDE gaps: Week 19 AI Solution Architecture, Week 20 Cloud Architecture & Deployment, Week 23 Customer Discovery & Stakeholder Comms, Week 24 Capstone, and the cross-cutting Architecture Track.
