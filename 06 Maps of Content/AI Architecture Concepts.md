@@ -69,8 +69,25 @@
 
 ---
 
-## Planned (Phase 4 continued)
-- ⬜ Week 21 — Security, Governance & Responsible AI (PII/DLP, RBAC/ABAC, prompt injection defenses, audit, compliance, responsible AI principles)
+## Week 21 — Security, Governance & Responsible AI
+> The layer that decides whether AI goes live: threat modeling, PII/DLP, prompt injection defenses, governance, and the enterprise Security Review Board.
+
+### Week 21a — Reference Patterns
+- ✅ [[02 Literature Notes/AI Architecture/Security, Governance & Responsible AI — Reference Patterns]]
+  - OWASP LLM Top 10 + STRIDE for AI · trust zones · PII/DLP + right-to-erasure · AuthN/AuthZ with retrieval-time ACL enforcement · direct + indirect prompt injection defenses (layered) · Responsible AI (NIST AI RMF, Microsoft RAI, EU AI Act Article 6) · model cards + data cards
+  - Snippets: [[04 Code Snippets/AI Architecture/AI Week 21a PII Redaction Pipeline With Policy Classes]] · [[04 Code Snippets/AI Architecture/AI Week 21a Prompt Injection Defense Pipeline]]
+  - Permanent: [[03 Permanent Notes/AI Week 21a OWASP LLM Top 10 Engineering Controls Map]] · [[03 Permanent Notes/AI Week 21a Enterprise AI Governance and Responsible AI Framework]]
+
+### Week 21b — Applied (getting the W20 system through SRB)
+- ✅ [[02 Literature Notes/AI Architecture/Security, Governance & Responsible AI — Applied]]
+  - Full Security Review Board submission for the insurance-underwriter system · end-to-end data-flow controls on the Azure topology · redact-before-embed + right-to-erasure workflow · model risk management (SR 11-7 style) · prompt+tool approval workflows · EU AI Act positioning · red-team + 25-item go-live checklist
+  - Snippets: [[04 Code Snippets/AI Architecture/AI Week 21b Enterprise AI Security Review Submission Generator]] · [[04 Code Snippets/AI Architecture/AI Week 21b Enterprise AI Go Live Checklist Evaluator]]
+  - Permanent: [[03 Permanent Notes/AI Week 21b Enterprise AI Security Review Submission Template]] · [[03 Permanent Notes/AI Week 21b Enterprise AI Go-Live Checklist]]
+
+---
+
+## Phase 4 Status
+Phase 4 is ✅ complete — architecture (W19), deployment (W20), LLMOps (W22), and security/governance (W21). Next: Phase 5 (Weeks 23–24).
 
 ## Roadmap position
 - Prerequisite: [[06 Maps of Content/Software Engineering Concepts]] (Phase 1 + Depth Pass) — the engineering foundation this architecture layer sits on.
