@@ -9,6 +9,9 @@
 - [[02 Literature Notes/Courses/Capstone]]
 - [[02 Literature Notes/Courses/Extra AIML Resources]]
 
+## Master Synthesis Map
+- [[06 Maps of Content/FDE Engagement Architecture — Master Map]] — cross-cutting map that ties the full 24-week FDE roadmap into one engagement flow (start here for review / interview prep)
+
 ## Concept Maps
 - [[06 Maps of Content/Python Concepts]]
 - [[06 Maps of Content/Applied Data Science Concepts]]
