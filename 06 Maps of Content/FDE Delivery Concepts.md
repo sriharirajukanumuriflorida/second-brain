@@ -35,9 +35,25 @@
 
 ---
 
-## Planned
-- ⬜ Week 24 — Capstone FDE Portfolio Project (the demonstrable artifact that proves problem → architecture → AI system → deployment → evaluation → business value)
+## Week 24 — Capstone FDE Portfolio Project
+> The demonstrable artifact that proves the full arc: problem → architecture → AI system → deployment → evaluation → business value. A NEW scenario (Enterprise AI SDLC Assistant) to prove the pattern repeats on a fresh problem.
+
+### Week 24a — Reference Patterns
+- ✅ [[02 Literature Notes/FDE Delivery/Capstone FDE Portfolio Project — Reference Patterns]]
+  - What a portfolio-grade capstone must prove · deliverable scorecard rubric · prompt-contract eval regression as the proof-of-quality artifact · portfolio narrative (problem → value) structure · interview-ready framing
+  - Snippets: [[04 Code Snippets/FDE Delivery/FDE Week 24a Capstone Deliverable Scorecard]] · [[04 Code Snippets/FDE Delivery/FDE Week 24a Prompt Contract Eval Regression Renderer]]
+  - Permanent: [[03 Permanent Notes/FDE Week 24a Capstone Deliverable Checklist]] · [[03 Permanent Notes/FDE Week 24a Portfolio Narrative Playbook]]
+
+### Week 24b — Applied (Enterprise AI SDLC Assistant — a fresh capstone scenario)
+- ✅ [[02 Literature Notes/FDE Delivery/Capstone FDE Portfolio Project — Applied]]
+  - End-to-end offline pipeline for an Enterprise AI SDLC Assistant · capstone evaluation harness with regression reporting · the capstone blueprint (architecture + deployment + eval + business value) · interview and handoff scripts that tell the story
+  - Snippets: [[04 Code Snippets/FDE Delivery/FDE Week 24b Enterprise AI SDLC Assistant Offline Pipeline]] · [[04 Code Snippets/FDE Delivery/FDE Week 24b Capstone Evaluation Harness Regression Report]]
+  - Permanent: [[03 Permanent Notes/FDE Week 24b Enterprise AI SDLC Assistant Capstone Blueprint]] · [[03 Permanent Notes/FDE Week 24b Capstone Interview and Handoff Scripts]]
+
+---
+
+> ✅ **Phase 5 complete** — and with it the full 24-week FDE roadmap.
 
 ## Roadmap position
 - Prerequisites: [[06 Maps of Content/Software Engineering Concepts]] · [[06 Maps of Content/LLM Engineering Concepts]] · [[06 Maps of Content/AI Architecture Concepts]]
-- Downstream: Week 24 Capstone.
+- Downstream: none — Week 24 is the capstone that ties every prior phase together.
