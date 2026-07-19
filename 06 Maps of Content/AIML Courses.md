@@ -17,6 +17,7 @@
 - [[06 Maps of Content/Generative AI Concepts]]
 - [[06 Maps of Content/Capstone Projects]]
 - [[06 Maps of Content/ML Snippets]]
+- [[06 Maps of Content/LLM Engineering Concepts]]
 
 ## Resource Library
 - `07 Resources Library/Python Refresher/`
