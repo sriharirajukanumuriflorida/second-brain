@@ -35,8 +35,24 @@
 
 ---
 
+## Week 20 — Cloud Architecture & Deployment
+> Taking the W19 architecture from diagram to defensible, deployable Azure system.
+
+### Week 20a — Reference Patterns
+- ✅ [[02 Literature Notes/AI Architecture/Cloud Architecture & Deployment — Reference Patterns]]
+  - Azure AI Foundry / OpenAI · Bedrock · Vertex · PTU vs Standard · Container Apps vs AKS vs App Service · Dockerfile discipline · K8s primitives · Bicep vs Terraform · workload identity · Key Vault · GitHub Actions · blue/green · canary · prompt+model+index versioning tuple
+  - Snippets: [[04 Code Snippets/AI Architecture/AI Week 20a Cloud Deployment Manifest Validator]] · [[04 Code Snippets/AI Architecture/AI Week 20a Canary Release Evaluator]]
+  - Permanent: [[03 Permanent Notes/AI Week 20a Cloud AI Platform Decision Guide]] · [[03 Permanent Notes/AI Week 20a Container and Kubernetes Cheat Sheet for AI Services]]
+
+### Week 20b — Applied (deploy the W19 architecture)
+- ✅ [[02 Literature Notes/AI Architecture/Cloud Architecture & Deployment — Applied]]
+  - Insurance-underwriter scenario deployed on Azure: Container Apps + Azure OpenAI (private endpoint) + pgvector on Postgres Flexible + Blob audit + Key Vault + Entra ID + App Insights · Bicep IaC · CMK & data-boundary controls · monthly cost math at Baseline / Growth / Enterprise scale · independent rollback per prompt/model/index axis · GitHub Actions release pipeline · 2am rollback drill
+  - Snippets: [[04 Code Snippets/AI Architecture/AI Week 20b Azure Deployment Topology Cost Estimator]] · [[04 Code Snippets/AI Architecture/AI Week 20b Prompt Model Index Release Orchestrator]]
+  - Permanent: [[03 Permanent Notes/AI Week 20b Azure Enterprise AI Deployment Reference]] · [[03 Permanent Notes/AI Week 20b Prompt Model Index Release Discipline]]
+
+---
+
 ## Planned (Phase 4 continued)
-- ⬜ Week 20 — Cloud Architecture & Deployment (Azure AI / OpenAI, containers, IaC, secrets, environments, CI/CD to cloud)
 - ⬜ Week 21 — Security, Governance & Responsible AI (PII/DLP, RBAC/ABAC, prompt injection defenses, audit, compliance, responsible AI principles)
 - ⬜ Week 22 — LLMOps, Monitoring, Cost & Reliability (observability, SLOs, drift, evaluation regression, incident handling)
 
