@@ -1,0 +1,13 @@
+# Agent Outputs
+
+This folder contains AI-generated outputs from the FDE Vault Agent Platform.
+
+**IMPORTANT:** This is the ONLY folder where the MVP may write generated content.
+
+Generated outputs include:
+- Workflow drafts (Grill Me Reviews, Implementation Plans, Solution Briefs)
+- Knowledge Refresh reports
+- Research summaries
+- Other AI-generated artifacts
+
+All generated content must include the required metadata front matter and go through GitHub PR review before promotion to other vault folders.

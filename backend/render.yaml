@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: fde-vault-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      # Point at Supabase Postgres (paste the connection string in the Render dashboard).
+      # Use the Supabase "Connection pooling" (Transaction / port 6543) URI for a free web service.
+      - key: DATABASE_URL
+        sync: false
+      - key: LLM_PROVIDER
+        value: anthropic
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: claude-3-5-sonnet-20241022
+      - key: EMBEDDING_PROVIDER
+        value: openai
+      - key: EMBEDDING_API_KEY
+        sync: false
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: GITHUB_PAT
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        sync: false
+      # Must EXACTLY match the callback URL registered in the GitHub OAuth app.
+      # See backend/GITHUB_OAUTH_SETUP.md. e.g. https://<app>.vercel.app/auth/callback
+      - key: GITHUB_OAUTH_REDIRECT_URI
+        sync: false
+      # Comma-separated allowed frontend origins (your Vercel URL).
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+      # Secret for generating read-only access links (scripts/generate_access_link.py).
+      - key: ADMIN_SECRET
+        sync: false
+      # Require HTTPS for the read-only access cookie (true in production).
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: VAULT_PATH
+        value: /opt/vault
+      - key: PYTHON_VERSION
+        value: 3.11.0
