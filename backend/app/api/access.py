@@ -25,7 +25,12 @@ class ClaimRequest(BaseModel):
 
 
 @router.post("/access/claim")
-async def claim_access(payload: ClaimRequest, response: Response, db: Session = Depends(get_db)):
+async def claim_access(
+    payload: ClaimRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     """Claim a share link and bind read-only access to this browser."""
     service = AccessTokenService(db)
     binding = service.claim(payload.token)
@@ -35,14 +40,14 @@ async def claim_access(payload: ClaimRequest, response: Response, db: Session = 
             detail="Link is invalid, already used, expired, or revoked.",
         )
 
-    # Cross-site XHR from Vercel -> Render needs SameSite=None in production so
-    # the browser will accept and send the cookie on credentialed requests.
+    # Cross-site XHR from Vercel -> Render needs SameSite=None + Secure on HTTPS.
+    cookie_secure = settings.cookie_secure or request.url.scheme == "https"
     response.set_cookie(
         key=ACCESS_COOKIE_NAME,
         value=binding,
         httponly=True,
-        secure=settings.cookie_secure,
-        samesite="none" if settings.cookie_secure else "lax",
+        secure=cookie_secure,
+        samesite="none" if cookie_secure else "lax",
         max_age=24 * 60 * 60,
     )
     return {"status": "claimed", "role": "readonly"}
