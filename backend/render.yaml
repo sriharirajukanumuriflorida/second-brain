@@ -2,9 +2,10 @@ services:
   - type: web
     name: fde-vault-backend
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    pythonVersion: 3.11
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/v1/health
     envVars:
       # Point at Supabase Postgres (paste the connection string in the Render dashboard).
       # Use the Supabase "Connection pooling" (Transaction / port 6543) URI for a free web service.
