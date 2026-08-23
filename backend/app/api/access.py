@@ -35,13 +35,14 @@ async def claim_access(payload: ClaimRequest, response: Response, db: Session = 
             detail="Link is invalid, already used, expired, or revoked.",
         )
 
-    # HTTP-only so JS can't read it; SameSite=Lax; Secure in production.
+    # Cross-site XHR from Vercel -> Render needs SameSite=None in production so
+    # the browser will accept and send the cookie on credentialed requests.
     response.set_cookie(
         key=ACCESS_COOKIE_NAME,
         value=binding,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="lax",
+        samesite="none" if settings.cookie_secure else "lax",
         max_age=24 * 60 * 60,
     )
     return {"status": "claimed", "role": "readonly"}
