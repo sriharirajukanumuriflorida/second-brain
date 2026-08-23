@@ -67,7 +67,7 @@ function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold mb-4">FDE Vault Agent Platform</h1>
+        <h1 className="text-2xl font-bold mb-4">Second Brain</h1>
         <p className="text-gray-500 mb-4">Sign in with GitHub to continue</p>
         <button
           onClick={initiateLogin}
