@@ -7,7 +7,6 @@ from app.database import get_db
 from app.schemas import StatusResponse
 from app.models import Note, SyncEvent
 from app.config import settings
-from app.utils.auth import require_read_access, Principal
 from sqlalchemy import desc
 
 router = APIRouter()
@@ -16,7 +15,6 @@ router = APIRouter()
 @router.get("/status", response_model=StatusResponse)
 async def get_status(
     db: Session = Depends(get_db),
-    principal: Principal = Depends(require_read_access),
 ):
     """Get vault sync and index status."""
     total_notes = db.query(Note).count()
