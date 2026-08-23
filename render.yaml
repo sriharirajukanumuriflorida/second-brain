@@ -1,10 +1,8 @@
 services:
   - type: web
     name: fde-vault-backend
-    env: python
-    pythonVersion: 3.11
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    env: docker
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /api/v1/health
     envVars:
       # Point at Supabase Postgres (paste the connection string in the Render dashboard).
@@ -44,5 +42,3 @@ services:
         value: "true"
       - key: VAULT_PATH
         value: /opt/vault
-      - key: PYTHON_VERSION
-        value: 3.11.0
