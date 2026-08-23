@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 
 function Header({ onMobileMenuToggle, user, onLogout }) {
   return (
@@ -14,21 +14,36 @@ function Header({ onMobileMenuToggle, user, onLogout }) {
             </svg>
           </button>
           <Link to="/" className="text-xl font-bold text-gray-900">
-            FDE Vault
+            Second Brain
           </Link>
         </div>
-        
+
         <div className="flex items-center space-x-4">
           <nav className="hidden md:flex space-x-6">
-            <Link to="/notes" className="text-gray-600 hover:text-gray-900">
+            <NavLink
+              to="/notes"
+              className={({ isActive }) =>
+                isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
+              }
+            >
               Notes
-            </Link>
-            <Link to="/search" className="text-gray-600 hover:text-gray-900">
+            </NavLink>
+            <NavLink
+              to="/search"
+              className={({ isActive }) =>
+                isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
+              }
+            >
               Search
-            </Link>
-            <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">
+            </NavLink>
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) =>
+                isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
+              }
+            >
               Dashboard
-            </Link>
+            </NavLink>
           </nav>
           
           {user && (
