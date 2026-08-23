@@ -24,6 +24,10 @@
     {
       "source": "/notes/:id",
       "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/index.html"
     }
   ]
 }

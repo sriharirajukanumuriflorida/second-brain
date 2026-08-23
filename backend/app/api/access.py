@@ -5,14 +5,17 @@ A visitor opens a share link (…/access?token=XYZ); the frontend posts that tok
 to /access/claim, which binds it to their browser via an HTTP-only cookie and
 starts the 24h clock. Subsequent requests are authorized by require_read_access.
 """
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.database import get_db
 from app.config import settings
+from app.models import User
+from app.schemas import GenerateAccessLinkRequest, GenerateAccessLinkResponse, AccessLinkResponse
 from app.services.auth.access_service import AccessTokenService
-from app.utils.auth import require_read_access, Principal, ACCESS_COOKIE_NAME
+from app.utils.auth import require_read_access, require_admin, Principal, ACCESS_COOKIE_NAME
 
 router = APIRouter()
 
@@ -55,3 +58,57 @@ async def access_logout(response: Response):
     """Clear the read-only access cookie in this browser."""
     response.delete_cookie(ACCESS_COOKIE_NAME)
     return {"status": "cleared"}
+
+
+@router.post("/access/generate", response_model=GenerateAccessLinkResponse)
+async def generate_access_link(
+    payload: GenerateAccessLinkRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Mint a new read-only share token (admin only)."""
+    service = AccessTokenService(db)
+    token = service.generate(ttl_hours=payload.hours, label=payload.label, role="readonly")
+    return GenerateAccessLinkResponse(
+        id=token.id,
+        token=token.token,
+        label=token.label,
+        ttl_hours=token.ttl_hours,
+        created_at=token.created_at,
+    )
+
+
+@router.get("/access/list", response_model=List[AccessLinkResponse])
+async def list_access_links(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """List all share links, newest first (admin only)."""
+    service = AccessTokenService(db)
+    return [
+        AccessLinkResponse(
+            id=row.id,
+            label=row.label,
+            role=row.role,
+            ttl_hours=row.ttl_hours,
+            created_at=row.created_at,
+            claimed_at=row.claimed_at,
+            expires_at=row.expires_at,
+            revoked=row.revoked,
+            is_claimed=row.browser_binding is not None,
+        )
+        for row in service.list_all()
+    ]
+
+
+@router.post("/access/{token_id}/revoke")
+async def revoke_access_link(
+    token_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Revoke a share link by id, killing any active access immediately (admin only)."""
+    service = AccessTokenService(db)
+    if not service.revoke_by_id(token_id):
+        raise HTTPException(status_code=404, detail="Access link not found")
+    return {"status": "revoked"}

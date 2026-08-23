@@ -9,6 +9,7 @@ import NotesPage from './pages/NotesPage';
 import NotePage from './pages/NotePage';
 import SearchPage from './pages/SearchPage';
 import DashboardPage from './pages/DashboardPage';
+import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AccessPage from './pages/AccessPage';
@@ -89,9 +90,9 @@ function App() {
                 />
 
                 <div className="flex">
-                  <Sidebar />
+                  <Sidebar user={user} />
 
-                  <MobileNav isOpen={isMobileMenuOpen} onClose={toggleMobileMenu} />
+                  <MobileNav isOpen={isMobileMenuOpen} onClose={toggleMobileMenu} user={user} />
 
                   <main className="flex-1 p-4 md:p-8 lg:ml-64">
                     <Routes>
@@ -100,6 +101,7 @@ function App() {
                       <Route path="/notes/:id" element={<NotePage />} />
                       <Route path="/search" element={<SearchPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
+                      <Route path="/admin" element={<AdminPage />} />
                     </Routes>
                   </main>
                 </div>

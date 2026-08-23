@@ -44,6 +44,16 @@ function Header({ onMobileMenuToggle, user, onLogout }) {
             >
               Dashboard
             </NavLink>
+            {user?.role === 'admin' && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
+                }
+              >
+                Admin
+              </NavLink>
+            )}
           </nav>
           
           {user && (
