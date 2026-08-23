@@ -52,7 +52,14 @@ class ClaudeProvider(BaseLLMProvider):
             messages=user_messages,
         )
         if enable_web_search:
-            kwargs["tools"] = [self.WEB_SEARCH_TOOL]
+            try:
+                import anthropic as _anthropic
+                major = int(_anthropic.__version__.split(".")[0])
+                minor = int(_anthropic.__version__.split(".")[1])
+                if (major, minor) >= (0, 28):
+                    kwargs["tools"] = [self.WEB_SEARCH_TOOL]
+            except Exception:
+                pass  # gracefully skip web search if SDK is too old
 
         response = self.client.messages.create(**kwargs)
 
