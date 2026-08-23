@@ -20,7 +20,7 @@ _CHARS_PER_TOKEN = 4
 
 # Cheap summarisation models
 _CHEAP = {
-    "anthropic": "claude-3-haiku-20240307",
+    "anthropic": "claude-3-5-haiku-20241022",
     "openai":    "gpt-4o-mini",
 }
 
