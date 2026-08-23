@@ -149,3 +149,43 @@ done
    first (`git log` vs `git log origin/<branch>`) before running
    `git reset --soft HEAD~1` — that command is safe only for commits that
    are still local-only.
+
+### Update 2026-08-23 (later same day): a single-file commit failed 10 times in a row
+
+A later commit in this same session (`AdminPage.jsx`, one new 186-line file —
+smaller than several commits that had already succeeded earlier that day)
+hit **10 consecutive `HTTP 503` failures**, including with `sleep` backoffs
+up to 25s between attempts. This was categorically worse than the earlier
+flakiness in this log and did not clear with plain retries alone.
+
+**What fixed it:** forcing git to open a fresh TLS connection per request
+instead of reusing the keep-alive connection from prior failed attempts:
+
+```bash
+git config --local http.https://github.com.extraHeader "Connection: close"
+git push --no-thin origin feature/add_llm_wraper
+# ...succeeded on the first attempt after this...
+git config --local --unset http.https://github.com.extraHeader
+```
+
+This suggests at least some of these 503s are tied to a specific
+(likely proxy-terminated) TCP/TLS connection getting stuck in a bad state,
+where curl/git kept reusing it across "retries" rather than establishing a
+genuinely new connection each time. Forcing `Connection: close` sidesteps
+that by making every attempt negotiate a brand-new connection.
+
+**Updated guidance — escalation order when a push is stuck:**
+1. Plain retries first (2-3x, a few seconds apart).
+2. If still failing after ~5 attempts, add
+   `-c http.https://github.com.extraHeader="Connection: close"` to force a
+   fresh connection per attempt, e.g.:
+   `git -c http.https://github.com.extraHeader="Connection: close" push --no-thin origin <branch>`
+   (or set it with `git config --local` for the session, and `--unset` it
+   after — don't leave it configured long-term, since it disables HTTP
+   keep-alive for all pushes on this repo, which is slightly slower).
+3. Only fall back to splitting the commit into smaller pieces if step 2
+   also fails repeatedly — this session's evidence suggests connection
+   reuse, not payload size, is the more likely culprit.
+4. Same verification rule as before: `git fetch origin <branch>` +
+   compare `git rev-parse HEAD` vs `origin/<branch>` — never assume a
+   `503` partially applied.
