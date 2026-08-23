@@ -43,6 +43,18 @@ class TestLogoutInvalidation:
         assert client.get(f"{API}/auth/me", headers=auth["headers"]).status_code == 401
 
 
+class TestStatusEndpoint:
+    def test_status_returns_ok(self, client, auth):
+        # Regression test: vault_path is a pathlib.Path in settings but
+        # StatusResponse.vault_path is typed str — passing the Path object
+        # directly used to fail FastAPI's response validation with a 500.
+        r = client.get(f"{API}/status", headers=auth["headers"])
+        assert r.status_code == 200
+        body = r.json()
+        assert isinstance(body["vault_path"], str)
+        assert isinstance(body["total_notes"], int)
+
+
 class TestSearchEndpoint:
     def test_search_returns_keyword_hits(self, client, db_session, auth):
         note = Note(

@@ -23,6 +23,9 @@ services:
         value: text-embedding-3-small
       - key: GITHUB_PAT
         sync: false
+      # Git URL of the Obsidian vault repo to sync notes from (e.g. this repo).
+      - key: GITHUB_REPO_URL
+        sync: false
       - key: GITHUB_OAUTH_CLIENT_ID
         sync: false
       - key: GITHUB_OAUTH_CLIENT_SECRET
