@@ -9,6 +9,7 @@ import NotesPage from './pages/NotesPage';
 import SearchPage from './pages/SearchPage';
 import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import AccessPage from './pages/AccessPage';
 
 function App() {
@@ -71,6 +72,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/access" element={<AccessPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route
           path="/*"
           element={
