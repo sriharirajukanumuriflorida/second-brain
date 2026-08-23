@@ -25,7 +25,7 @@ class GitHubOAuthService:
             redirect_uri=self.redirect_uri,
             state=state
         )
-        authorization_url, _ = oauth.authorization_url(
+        authorization_url = oauth.create_authorization_url(
             self.GITHUB_AUTH_URL
         )
         return authorization_url
