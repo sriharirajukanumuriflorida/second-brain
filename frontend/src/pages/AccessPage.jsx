@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { claimAccess } from '../api/client';
 
 /**
@@ -11,7 +11,6 @@ function AccessPage() {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -25,13 +24,13 @@ function AccessPage() {
         await claimAccess(token);
         // Mark this browser as read-only so the app skips GitHub login.
         localStorage.setItem('access_mode', 'readonly');
-        navigate('/notes');
+        window.location.replace('/notes');
       } catch (err) {
         setError('This link is invalid, already used, expired, or revoked.');
         setLoading(false);
       }
     })();
-  }, [searchParams, navigate]);
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

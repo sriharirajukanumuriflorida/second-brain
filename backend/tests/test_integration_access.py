@@ -62,11 +62,11 @@ class TestWritesBlocked:
 
 
 class TestTokenRejections:
-    def test_double_claim_rejected(self, client, db_session):
+    def test_double_claim_reissues_binding(self, client, db_session):
         token = AccessTokenService(db_session).generate().token
         assert client.post(f"{API}/access/claim", json={"token": token}).status_code == 200
-        # Second claim of the same link fails (single-use).
-        assert client.post(f"{API}/access/claim", json={"token": token}).status_code == 400
+        # Re-claiming the same link is allowed for testing and refreshes access.
+        assert client.post(f"{API}/access/claim", json={"token": token}).status_code == 200
 
     def test_unknown_token_rejected(self, client):
         assert client.post(f"{API}/access/claim", json={"token": "nope"}).status_code == 400

@@ -37,19 +37,17 @@ class AccessTokenService:
         return token
 
     def claim(self, token_value: str) -> Optional[str]:
-        """Claim a link on first open; bind it to a new browser.
+        """Claim a link and bind it to a browser.
 
         Returns the browser_binding value to set as an HTTP-only cookie, or None
-        if the token is unknown, revoked, already claimed, or expired.
+        if the token is unknown, revoked, or expired. Re-claiming the same link
+        refreshes the browser binding so the link can be reused for testing.
         """
         row = self.db.query(AccessToken).filter(
             AccessToken.token == token_value
         ).first()
 
         if row is None or row.revoked:
-            return None
-        # Already claimed -> the link is single-use; reject a second claim.
-        if row.browser_binding is not None:
             return None
 
         now = datetime.now(timezone.utc)
