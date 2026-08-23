@@ -20,6 +20,7 @@ class LLMResponse(BaseModel):
     model: str
     provider: str
     estimated_cost_usd: float
+    web_sources: list[dict] = []  # populated when native web_search tool is used
 
 
 class BaseLLMProvider(ABC):

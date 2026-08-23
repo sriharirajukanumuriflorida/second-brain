@@ -10,6 +10,7 @@ import NotePage from './pages/NotePage';
 import SearchPage from './pages/SearchPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
+import ChatPage from './pages/ChatPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AccessPage from './pages/AccessPage';
@@ -104,6 +105,7 @@ function App() {
                       <Route path="/search" element={<SearchPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/admin" element={<AdminPage />} />
+                      <Route path="/chat" element={<ChatPage />} />
                     </Routes>
                   </main>
                 </div>

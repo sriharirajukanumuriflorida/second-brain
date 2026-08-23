@@ -76,6 +76,28 @@ class AccessTokenService:
             return None
         return row
 
+    def validate_token(self, token_value: str) -> Optional[AccessToken]:
+        """Return the live AccessToken for a claimed shared link token.
+
+        This is used as a cookie-free fallback for browsers that block cross-site
+        cookies. The token must already be claimed and must still be active.
+        """
+        if not token_value:
+            return None
+
+        row = self.db.query(AccessToken).filter(
+            AccessToken.token == token_value
+        ).first()
+        if row is None or row.revoked or row.claimed_at is None or row.expires_at is None:
+            return None
+
+        expires = row.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires <= datetime.now(timezone.utc):
+            return None
+        return row
+
     def revoke(self, token_value: str) -> bool:
         """Revoke a token by its original link value (kills active access)."""
         row = self.db.query(AccessToken).filter(

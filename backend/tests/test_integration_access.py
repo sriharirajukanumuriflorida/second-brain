@@ -42,6 +42,16 @@ class TestClaimAndRead:
         # Dashboards (metrics) also allowed under chosen scope.
         assert client.get(f"{API}/metrics").status_code == 200
 
+    def test_claim_then_read_with_bearer_token(self, client, db_session):
+        _seed_note(db_session)
+        token = AccessTokenService(db_session).generate().token
+
+        assert client.post(f"{API}/access/claim", json={"token": token}).status_code == 200
+
+        notes = client.get(f"{API}/notes", headers={"Authorization": f"Bearer {token}"})
+        assert notes.status_code == 200
+        assert any(n["title"] == "RAG Note" for n in notes.json())
+
     def test_access_status_reports_readonly(self, client, db_session):
         token = AccessTokenService(db_session).generate().token
         client.post(f"{API}/access/claim", json={"token": token})

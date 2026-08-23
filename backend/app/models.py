@@ -105,6 +105,52 @@ class Session(Base):
     user = relationship("User", backref="sessions")
 
 
+class ChatSession(Base):
+    """A multi-turn chat session."""
+
+    __tablename__ = "chat_sessions"
+
+    id = Column(String, primary_key=True, index=True)  # UUID set by caller
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # null for shared-link visitors
+    summary = Column(Text, nullable=True)  # compressed history for old turns
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
+
+
+class ChatMessage(Base):
+    """A single message in a chat session."""
+
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, ForeignKey("chat_sessions.id"), nullable=False, index=True)
+    role = Column(String, nullable=False)  # "user" or "assistant"
+    content = Column(Text, nullable=False)
+    source_notes = Column(Text, nullable=True)   # JSON list of note paths
+    web_sources = Column(Text, nullable=True)    # JSON list of {title, url, snippet}
+    model = Column(String, nullable=True)
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    session = relationship("ChatSession", back_populates="messages")
+
+
+class ChatCache(Base):
+    """1-hour reply cache keyed on query + top-note hash."""
+
+    __tablename__ = "chat_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cache_key = Column(String, unique=True, index=True, nullable=False)
+    reply = Column(Text, nullable=False)
+    source_notes = Column(Text, nullable=True)   # JSON
+    web_sources = Column(Text, nullable=True)    # JSON
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
 class AccessToken(Base):
     """One-time, browser-bound, time-limited read-only access grant.
 

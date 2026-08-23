@@ -69,7 +69,7 @@ def require_read_access(
     """Allow access to a logged-in user OR a valid read-only access cookie.
 
     Checks a bearer session first (owner/admin), then falls back to the
-    browser-bound access cookie set at claim time. Raises 401 if neither.
+    shared-link token (cookie or Authorization bearer). Raises 401 if neither.
     """
     # 1. Bearer session (owner logging in normally)
     auth_header = request.headers.get("Authorization", "")
@@ -78,6 +78,10 @@ def require_read_access(
         user = SessionService(db).get_user_by_session(token)
         if user and user.is_active:
             return Principal("user", user.role, user)
+
+        access = AccessTokenService(db).validate_token(token)
+        if access:
+            return Principal("access", access.role)
 
     # 2. Read-only access cookie (shared link visitor)
     binding = request.cookies.get(ACCESS_COOKIE_NAME)

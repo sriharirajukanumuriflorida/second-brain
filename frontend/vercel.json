@@ -1,26 +1,14 @@
 {
   "version": 2,
   "rewrites": [
-    {
-      "source": "/auth/callback",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/notes",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/search",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/access",
-      "destination": "/index.html"
-    },
+    { "source": "/auth/callback", "destination": "/index.html" },
+    { "source": "/notes",         "destination": "/index.html" },
+    { "source": "/notes/:id",     "destination": "/index.html" },
+    { "source": "/search",        "destination": "/index.html" },
+    { "source": "/dashboard",     "destination": "/index.html" },
+    { "source": "/admin",         "destination": "/index.html" },
+    { "source": "/chat",          "destination": "/index.html" },
+    { "source": "/access",        "destination": "/index.html" },
     {
       "source": "/notes/:id",
       "destination": "/index.html"

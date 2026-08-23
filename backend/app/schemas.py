@@ -163,3 +163,46 @@ class CostConfirmationResponse(BaseModel):
     remaining_budget: float
     research_budget: float
     warning_level: str
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+class LLMConfig(BaseModel):
+    """Optional user-supplied LLM credentials (stored only in browser localStorage,
+    sent per-request; never persisted server-side)."""
+    provider: str = Field(..., description="anthropic or openai")
+    api_key: str
+    model: Optional[str] = None
+
+
+class ChatHistoryMessage(BaseModel):
+    """A single turn from the client's local history."""
+    role: str   # "user" or "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    """Chat request."""
+    message: str = Field(..., min_length=1, max_length=4000)
+    session_id: Optional[str] = None          # UUID; created by backend if absent
+    history: List[ChatHistoryMessage] = []    # last N turns from frontend
+    llm_config: Optional[LLMConfig] = None   # user-supplied keys override server keys
+
+
+class WebSource(BaseModel):
+    """A web search result snippet."""
+    title: str
+    url: str
+    snippet: str
+
+
+class ChatResponse(BaseModel):
+    """Chat response."""
+    reply: str
+    session_id: str
+    source_notes: List[str] = []   # vault note paths used as context
+    web_sources: List[WebSource] = []
+    model: str
+    input_tokens: int
+    output_tokens: int
+    cached: bool = False

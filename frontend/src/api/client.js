@@ -100,4 +100,15 @@ export const revokeAccessLink = async (id) => {
   return response.data;
 };
 
+// Chat — mentor chat with vault RAG + optional web search.
+// llmConfig: { provider, api_key, model } from localStorage; omit to use server keys.
+export const sendChatMessage = async ({ message, sessionId, history = [], llmConfig = null }) => {
+  const body = { message, history };
+  if (sessionId) body.session_id = sessionId;
+  if (llmConfig) body.llm_config = llmConfig;
+  const response = await api.post('/api/v1/chat', body);
+  return response.data;
+};
+
 export default api;
+

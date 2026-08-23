@@ -1,8 +1,8 @@
 # Read-only shared access (24h links)
 
 Share your knowledge base with someone **without giving them a GitHub account**.
-You mint a temporary link; opening it binds read-only access to the browser
-for 24 hours.
+You mint a temporary link; opening it claims the link and grants read-only
+access for 24 hours.
 
 ## How it works
 
@@ -11,9 +11,10 @@ You run the generator (with ADMIN_SECRET) ──► get a link:
     https://<your-app>.vercel.app/access?token=<random>
 
 You send the link ──► recipient opens it ──►
-    backend binds it to their browser (HTTP-only cookie), starts a 24h clock.
-    They can READ/SEARCH notes + view dashboards. All writes/workflows are
-    blocked. After 24h it expires.
+    backend starts a 24h clock. The browser stores the claimed token and can
+    use it for read requests even if cookies are blocked. They can READ/SEARCH
+    notes + view dashboards. All writes/workflows are blocked. After 24h it
+    expires.
 ```
 
 **Security properties**
@@ -21,8 +22,8 @@ You send the link ──► recipient opens it ──►
 - ✅ Read-only — write/workflow endpoints require a real login, which visitors don't have
 - ✅ Revocable — see below
 - ⚠️ Not hardware-locked. Browsers cannot read a MAC address; "one machine" is
-  approximated by the per-browser cookie. Within 24h the *claimed browser* keeps
-  access; the original link is dead after claim.
+  approximated by the claimed token. Within 24h the browser that claimed the
+  link keeps access.
 
 ## Generate a link
 
