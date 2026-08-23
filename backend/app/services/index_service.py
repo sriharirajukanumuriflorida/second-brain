@@ -9,6 +9,7 @@ from app.services.extractor_service import extract_tags, extract_backlinks, extr
 from app.services.scanner_service import ScannerService
 from pathlib import Path
 from typing import List
+from datetime import datetime
 import json
 
 

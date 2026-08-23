@@ -28,5 +28,5 @@ async def get_status(
         total_notes=total_notes,
         last_sync_at=last_sync.started_at if last_sync else None,
         last_sync_status=last_sync.status if last_sync else None,
-        vault_path=settings.vault_path
+        vault_path=str(settings.vault_path)
     )

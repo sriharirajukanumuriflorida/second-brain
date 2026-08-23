@@ -20,9 +20,10 @@
     {
       "source": "/access",
       "destination": "/index.html"
+    },
+    {
+      "source": "/notes/:id",
+      "destination": "/index.html"
     }
-  ],
-  "env": {
-    "VITE_API_URL": "https://your-backend-url.onrender.com"
-  }
+  ]
 }

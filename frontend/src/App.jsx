@@ -6,6 +6,7 @@ import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import MobileNav from './components/layout/MobileNav';
 import NotesPage from './pages/NotesPage';
+import NotePage from './pages/NotePage';
 import SearchPage from './pages/SearchPage';
 import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
@@ -96,6 +97,7 @@ function App() {
                     <Routes>
                       <Route path="/" element={<Navigate to="/notes" />} />
                       <Route path="/notes" element={<NotesPage />} />
+                      <Route path="/notes/:id" element={<NotePage />} />
                       <Route path="/search" element={<SearchPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
                     </Routes>

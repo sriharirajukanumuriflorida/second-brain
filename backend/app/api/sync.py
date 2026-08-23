@@ -75,7 +75,7 @@ async def run_sync_task(db: Session, sync_id: int, force: bool):
 
     except Exception as e:
         sync_event.status = "failed"
-        sync_event.completed_at = datetime.now(timezone.utc)
+        sync_event.completed_at = datetime.utcnow()
         sync_event.error_message = str(e)
         db.commit()
 
