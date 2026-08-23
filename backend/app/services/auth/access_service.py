@@ -88,3 +88,17 @@ class AccessTokenService:
         row.revoked = True
         self.db.commit()
         return True
+
+    def revoke_by_id(self, token_id: int) -> bool:
+        """Revoke a token by DB id (used by the admin UI, which never sees
+        the raw token value for already-generated links)."""
+        row = self.db.query(AccessToken).filter(AccessToken.id == token_id).first()
+        if row is None:
+            return False
+        row.revoked = True
+        self.db.commit()
+        return True
+
+    def list_all(self):
+        """All access tokens, newest first, for the admin list view."""
+        return self.db.query(AccessToken).order_by(AccessToken.created_at.desc()).all()

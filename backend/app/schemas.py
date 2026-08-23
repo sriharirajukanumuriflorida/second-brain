@@ -57,6 +57,39 @@ class FolderResponse(BaseModel):
     note_count: int
 
 
+class GenerateAccessLinkRequest(BaseModel):
+    """Request to mint a read-only share link."""
+
+    hours: int = Field(default=24, ge=1, le=24 * 30)
+    label: Optional[str] = None
+
+
+class GenerateAccessLinkResponse(BaseModel):
+    """Newly minted share token. The frontend builds the full share link
+    (its own origin + /access?token=...) since the backend doesn't know
+    the frontend's public URL."""
+
+    id: int
+    token: str
+    label: Optional[str] = None
+    ttl_hours: int
+    created_at: datetime
+
+
+class AccessLinkResponse(BaseModel):
+    """A single access token's current state, for the admin list view."""
+
+    id: int
+    label: Optional[str] = None
+    role: str
+    ttl_hours: int
+    created_at: datetime
+    claimed_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    revoked: bool
+    is_claimed: bool
+
+
 class SearchRequest(BaseModel):
     """Search request."""
 

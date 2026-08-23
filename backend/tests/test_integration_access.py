@@ -89,3 +89,37 @@ class TestTokenRejections:
 
         client.cookies.set("fde_access", binding)
         assert client.get(f"{API}/notes").status_code == 401
+
+
+class TestAdminGenerateListRevoke:
+    def test_generate_requires_admin(self, client):
+        # No auth at all -> rejected before reaching the handler.
+        r = client.post(f"{API}/access/generate", json={"hours": 24})
+        assert r.status_code == 403
+
+    def test_generate_list_and_revoke(self, client, auth):
+        gen = client.post(
+            f"{API}/access/generate",
+            json={"hours": 12, "label": "for Alex"},
+            headers=auth["headers"],
+        )
+        assert gen.status_code == 200
+        body = gen.json()
+        assert body["ttl_hours"] == 12
+        assert body["label"] == "for Alex"
+        assert "token" in body and len(body["token"]) > 10
+
+        listing = client.get(f"{API}/access/list", headers=auth["headers"])
+        assert listing.status_code == 200
+        items = listing.json()
+        assert any(item["id"] == body["id"] and not item["is_claimed"] for item in items)
+
+        revoke = client.post(f"{API}/access/{body['id']}/revoke", headers=auth["headers"])
+        assert revoke.status_code == 200
+
+        listing_after = client.get(f"{API}/access/list", headers=auth["headers"]).json()
+        assert next(item for item in listing_after if item["id"] == body["id"])["revoked"] is True
+
+    def test_revoke_unknown_id_404s(self, client, auth):
+        r = client.post(f"{API}/access/999999/revoke", headers=auth["headers"])
+        assert r.status_code == 404
