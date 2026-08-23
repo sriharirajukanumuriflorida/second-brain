@@ -11,6 +11,10 @@
   ],
   "routes": [
     {
+      "src": "/(auth/callback|notes|search|dashboard|access)(/.*)?",
+      "dest": "/dist/index.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/dist/$1"
     }
