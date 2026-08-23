@@ -33,8 +33,8 @@ function App() {
     if (token && userStr) {
       setIsAuthenticated(true);
       setUser(JSON.parse(userStr));
-    } else if (localStorage.getItem('access_mode') === 'readonly') {
-      // Shared-link visitor: authorized via HTTP-only cookie, no GitHub login.
+    } else if (localStorage.getItem('readonly_access_token') || localStorage.getItem('access_mode') === 'readonly') {
+      // Shared-link visitor: authorized by a claimed temporary access token.
       setIsReadOnly(true);
     }
   };
@@ -57,6 +57,8 @@ function App() {
     }
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
+    localStorage.removeItem('readonly_access_token');
+    localStorage.removeItem('access_mode');
     setIsAuthenticated(false);
     setUser(null);
   };

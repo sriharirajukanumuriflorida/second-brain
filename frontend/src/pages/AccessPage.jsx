@@ -24,6 +24,7 @@ function AccessPage() {
         await claimAccess(token);
         // Mark this browser as read-only so the app skips GitHub login.
         localStorage.setItem('access_mode', 'readonly');
+        localStorage.setItem('readonly_access_token', token);
         window.location.replace('/notes');
       } catch (err) {
         setError('This link is invalid, already used, expired, or revoked.');

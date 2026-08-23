@@ -19,9 +19,12 @@ const api = axios.create({
 // Attach the stored bearer token to every request so protected endpoints work.
 // The token is set at login (LoginPage) and cleared on logout (App).
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const loginToken = localStorage.getItem('access_token');
+  const readonlyToken = localStorage.getItem('readonly_access_token');
+  if (loginToken) {
+    config.headers.Authorization = `Bearer ${loginToken}`;
+  } else if (readonlyToken) {
+    config.headers.Authorization = `Bearer ${readonlyToken}`;
   }
   return config;
 });
