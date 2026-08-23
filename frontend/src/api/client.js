@@ -80,4 +80,21 @@ export const searchNotes = async (query, folder = null, limit = 20, semantic = t
   return response.data;
 };
 
+// Admin: read-only share links. All require an admin bearer token (attached
+// automatically by the request interceptor above).
+export const generateAccessLink = async (hours = 24, label = null) => {
+  const response = await api.post('/api/v1/access/generate', { hours, label });
+  return response.data;
+};
+
+export const listAccessLinks = async () => {
+  const response = await api.get('/api/v1/access/list');
+  return response.data;
+};
+
+export const revokeAccessLink = async (id) => {
+  const response = await api.post(`/api/v1/access/${id}/revoke`);
+  return response.data;
+};
+
 export default api;
