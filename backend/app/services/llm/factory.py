@@ -21,7 +21,7 @@ class LLMProviderFactory:
         provider = provider.lower()
 
         if provider == "anthropic" or provider == "claude":
-            default_model = model or "claude-3-5-sonnet-20241022"
+            default_model = model or "claude-haiku-4-5"
             return ClaudeProvider(api_key, default_model)
         elif provider == "openai":
             default_model = model or "gpt-4o"
