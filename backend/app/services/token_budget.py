@@ -120,13 +120,10 @@ class TokenBudgetService:
     # ── 3. Model routing ────────────────────────────────────────────────────
 
     def route_model(self, query: str, provider: str) -> str:
-        """Return a cheap model name for simple queries, powerful for complex ones."""
-        q_lower = query.lower()
-        is_complex = any(kw in q_lower for kw in _COMPLEXITY_KEYWORDS) or len(query) > 300
-        if is_complex:
-            # Return None to signal "use whatever the caller's model is"
-            return None
-        return _CHEAP.get(provider)
+        """Model routing is disabled — always returns None so the caller's
+        configured model is used. Cheap-model routing caused 404s on accounts
+        that don't have access to smaller models."""
+        return None
 
     # ── 4. Reply cache ──────────────────────────────────────────────────────
 
