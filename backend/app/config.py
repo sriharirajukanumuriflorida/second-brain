@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # LLM configuration
     llm_provider: str = "anthropic"  # anthropic or openai
     llm_api_key: str = ""  # LLM API key (separate from GitHub PAT)
-    llm_model: str = "claude-3-5-sonnet-20241022"  # Default model
+    llm_model: str = "claude-haiku-4-5"  # Default model
 
     # Embedding configuration
     embedding_provider: str = "openai"
