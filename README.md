@@ -108,4 +108,19 @@ npm run dev
 backend/   FastAPI API, auth, sync, indexing, search
 frontend/  React UI
 ```
+## App Overview 
+
+## Landing Page
+ - Dashboard
+ <img width="1545" height="600" alt="Screenshot 2026-08-30 at 5 05 52 PM" src="https://github.com/user-attachments/assets/ecf2a61b-a9e8-42f3-b907-d5dc70dd5780" />
+
+## Search Specific Topic
+ - Search for topic to learn with Mentor Chat 
+ <img width="1545" height="600" alt="Screenshot 2026-08-30 at 5 11 10 PM" src="https://github.com/user-attachments/assets/94d1077c-e371-4a02-8b25-bd7b5392980f" />
+
+ ## Notes for available topics 
+ <img width="1656" height="909" alt="Screenshot 2026-08-30 at 5 13 54 PM" src="https://github.com/user-attachments/assets/dc555452-5be6-488b-a3a5-1c28ad0174ed" />
+
+## Mentor Chat 
+<img width="1662" height="876" alt="Screenshot 2026-08-30 at 5 15 54 PM" src="https://github.com/user-attachments/assets/a310c295-cdf9-45e9-9355-76e0c31c5623" />
 
