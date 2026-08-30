@@ -7,7 +7,8 @@ from app.database import get_db
 from app.schemas import StatusResponse
 from app.models import Note, SyncEvent
 from app.config import settings
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
+from app.utils.auth import require_read_access, Principal
 
 router = APIRouter()
 
@@ -15,9 +16,13 @@ router = APIRouter()
 @router.get("/status", response_model=StatusResponse)
 async def get_status(
     db: Session = Depends(get_db),
+    principal: Principal = Depends(require_read_access),
 ):
     """Get vault sync and index status."""
-    total_notes = db.query(Note).count()
+    total_notes = db.query(Note).filter(
+        Note.is_archived == False,
+        or_(*[Note.folder.like(f"{digit}%") for digit in "0123456789"]),
+    ).count()
 
     # Get last sync event
     last_sync = db.query(SyncEvent).order_by(desc(SyncEvent.started_at)).first()

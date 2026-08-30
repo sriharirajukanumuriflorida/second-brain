@@ -97,7 +97,8 @@ async def run_workflow(
 @router.post("/workflows/cost-check", response_model=CostConfirmationResponse)
 async def check_workflow_cost(
     request: CostConfirmationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin),
 ):
     """Check cost before executing research workflow."""
     try:

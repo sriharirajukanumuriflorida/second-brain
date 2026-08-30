@@ -9,6 +9,7 @@ from app.services.embeddings.embedding_service import EmbeddingService
 from app.services.search.hybrid_search import HybridSearchService
 from app.config import settings
 from app.utils.logger import log_event
+from app.utils.auth import require_admin, require_read_access, Principal
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -43,7 +44,8 @@ class ReEmbedResponse(BaseModel):
 async def generate_embeddings(
     request: EmbeddingRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin),
 ):
     """Generate embeddings for a note."""
     try:
@@ -88,7 +90,8 @@ async def generate_embeddings(
 @router.post("/embeddings/re-embed", response_model=ReEmbedResponse)
 async def re_embed_stale(
     request: ReEmbedRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin),
 ):
     """Re-embed stale chunks."""
     try:
@@ -113,7 +116,10 @@ async def re_embed_stale(
 
 
 @router.get("/embeddings/status")
-async def get_embedding_status(db: Session = Depends(get_db)):
+async def get_embedding_status(
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_read_access),
+):
     """Get embedding status."""
     from app.models import EmbeddingChunk
 

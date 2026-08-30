@@ -2,7 +2,7 @@
 Hybrid search service (keyword + semantic).
 """
 from typing import List, Dict, Any, Optional
-from sqlalchemy import text
+from sqlalchemy import text, or_
 from sqlalchemy.orm import Session
 from app.models import Note, EmbeddingChunk
 
@@ -49,7 +49,10 @@ class HybridSearchService:
         limit: int
     ) -> List[Dict[str, Any]]:
         """Keyword search over note title and frontmatter."""
-        db_query = self.db.query(Note).filter(Note.is_archived == False)
+        db_query = self.db.query(Note).filter(
+            Note.is_archived == False,
+            or_(*[Note.folder.like(f"{digit}%") for digit in "0123456789"]),
+        )
 
         if folder:
             db_query = db_query.filter(Note.folder == folder)
@@ -89,7 +92,8 @@ class HybridSearchService:
         """
         vec_literal = "[" + ",".join(repr(float(x)) for x in query_embedding) + "]"
 
-        folder_clause = "AND n.folder = :folder" if folder else ""
+        obsidian_clause = "AND (" + " OR ".join([f"n.folder LIKE '{digit}%'" for digit in "0123456789"]) + ")"
+        folder_clause = f"AND n.folder = :folder {obsidian_clause}" if folder else obsidian_clause
         sql = text(f"""
             SELECT n.id AS note_id, n.path, n.title, n.folder,
                    MIN(ec.embedding_vec <=> :vec) AS distance

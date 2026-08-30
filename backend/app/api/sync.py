@@ -10,6 +10,7 @@ from app.services.index_service import IndexService
 from app.models import SyncEvent
 from app.config import settings
 from app.utils.logger import log_sync_started, log_sync_completed, log_sync_failed
+from app.utils.auth import require_admin
 from pathlib import Path
 from datetime import datetime
 
@@ -20,7 +21,8 @@ router = APIRouter()
 async def trigger_sync(
     request: SyncRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin),
 ):
     """Trigger vault sync and indexing."""
     # Create sync event

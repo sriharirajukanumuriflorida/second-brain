@@ -2,8 +2,7 @@
 Markdown file scanner service.
 """
 from pathlib import Path
-from typing import List, Generator
-import json
+from typing import Generator
 
 
 class ScannerService:
@@ -15,11 +14,14 @@ class ScannerService:
     def scan_markdown_files(self) -> Generator[Path, None, None]:
         """Scan vault for markdown files."""
         for file_path in self.vault_path.rglob("*.md"):
+            relative_path = file_path.relative_to(self.vault_path)
+            root_folder = relative_path.parts[0] if relative_path.parts else ""
             # Skip hidden files and .obsidian folder
             if (
                 ".obsidian" in str(file_path) or
                 file_path.name.startswith(".") or
-                "99 Archive" in str(file_path)
+                "99 Archive" in str(file_path) or
+                not root_folder[:1].isdigit()
             ):
                 continue
             yield file_path

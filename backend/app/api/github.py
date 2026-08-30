@@ -7,6 +7,7 @@ from app.database import get_db
 from app.schemas import GitHubWorkflowRequest, GitHubWorkflowResponse
 from app.services.github_branch_service import GitHubBranchService
 from app.utils.logger import log_event
+from app.utils.auth import require_admin
 
 router = APIRouter()
 
@@ -14,7 +15,8 @@ router = APIRouter()
 @router.post("/github/workflow", response_model=GitHubWorkflowResponse)
 async def complete_github_workflow(
     request: GitHubWorkflowRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin),
 ):
     """Complete GitHub workflow: branch, write, commit, push, PR."""
     try:

@@ -8,6 +8,7 @@ from app.utils.validators import (
     sanitize_path,
 )
 from app.services.hash_service import calculate_content_hash
+from app.services.scanner_service import ScannerService
 
 
 class TestTagExtraction:
@@ -63,3 +64,20 @@ class TestBranchNaming:
         # timestamp segment is 8+1+6 chars: yyyyMMdd-HHmmss
         ts = name.rsplit("/", 1)[1]
         assert len(ts) == 15 and ts[8] == "-"
+
+
+class TestScannerService:
+    def test_scans_only_note_folders(self, tmp_path):
+        vault = tmp_path
+        (vault / "02 Literature Notes").mkdir()
+        (vault / "backend").mkdir()
+        (vault / "frontend").mkdir()
+        (vault / "02 Literature Notes" / "note.md").write_text("# Note", encoding="utf-8")
+        (vault / "backend" / "README.md").write_text("# Backend", encoding="utf-8")
+        (vault / "frontend" / "README.md").write_text("# Frontend", encoding="utf-8")
+        (vault / "README.md").write_text("# Root", encoding="utf-8")
+
+        files = list(ScannerService(vault).scan_markdown_files())
+        assert [p.relative_to(vault).as_posix() for p in files] == [
+            "02 Literature Notes/note.md"
+        ]

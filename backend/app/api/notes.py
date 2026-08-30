@@ -3,6 +3,7 @@ Notes endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from app.database import get_db
 from app.schemas import NoteResponse
 from app.models import Note
@@ -11,6 +12,8 @@ from typing import List
 import json
 
 router = APIRouter()
+
+obsidian_folder_filter = or_(*[Note.folder.like(f"{digit}%") for digit in "0123456789"])
 
 
 @router.get("/notes", response_model=List[NoteResponse])
@@ -21,7 +24,7 @@ async def list_notes(
     principal: Principal = Depends(require_read_access),
 ):
     """List all notes."""
-    query = db.query(Note).filter(Note.is_archived == False)
+    query = db.query(Note).filter(Note.is_archived == False).filter(obsidian_folder_filter)
 
     if folder:
         query = query.filter(Note.folder == folder)
@@ -53,7 +56,7 @@ async def get_note(
     """Get note by ID."""
     note = db.query(Note).filter(Note.id == note_id).first()
 
-    if not note:
+    if not note or not note.folder[:1].isdigit():
         raise HTTPException(status_code=404, detail="Note not found")
 
     return NoteResponse(
