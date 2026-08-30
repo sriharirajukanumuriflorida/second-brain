@@ -4,13 +4,122 @@ import LLMSettingsPanel, { loadLLMConfig } from '../components/chat/LLMSettingsP
 
 const SESSION_KEY = 'chat_session_id';
 const HISTORY_KEY = 'chat_history';
+const LLM_CONFIG_KEY = 'llm_config';
 const MAX_HISTORY = 10;
+const KNOWN_MODELS = {
+  anthropic: [
+    'claude-3-5-sonnet-20241022',
+    'claude-3-5-haiku-20241022',
+    'claude-3-opus-20240229',
+  ],
+  openai: [
+    'gpt-4o',
+    'gpt-4o-mini',
+    'o3-mini',
+  ],
+};
 
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
 }
 function saveHistory(history) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-MAX_HISTORY)));
+}
+
+function formatInt(value) {
+  return new Intl.NumberFormat().format(value);
+}
+
+function buildUsageReply(messages) {
+  const assistantTurns = messages.filter(
+    (m) => m.role === 'assistant' && Number.isFinite(m.inputTokens) && Number.isFinite(m.outputTokens)
+  );
+  if (assistantTurns.length === 0) {
+    return 'No usage yet. Send at least one normal message, then run /usage.';
+  }
+
+  const totals = assistantTurns.reduce(
+    (acc, turn) => {
+      acc.input += turn.inputTokens;
+      acc.output += turn.outputTokens;
+      acc.cached += turn.cached ? 1 : 0;
+      return acc;
+    },
+    { input: 0, output: 0, cached: 0 }
+  );
+  const total = totals.input + totals.output;
+  const model = assistantTurns[assistantTurns.length - 1].model || 'unknown';
+
+  return [
+    `Usage (${assistantTurns.length} turns)`,
+    `Input tokens: ${formatInt(totals.input)}`,
+    `Output tokens: ${formatInt(totals.output)}`,
+    `Total tokens: ${formatInt(total)}`,
+    `Cached replies: ${totals.cached}`,
+    `Last model: ${model}`,
+  ].join('\n');
+}
+
+function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
+  const trimmed = text.trim();
+  const parts = trimmed.split(/\s+/);
+  const command = (parts[0] || '').toLowerCase();
+  const arg = parts.slice(1).join(' ').trim();
+
+  if (command === '/usage') return { reply: buildUsageReply(messages) };
+  if (command === '/help' || command === '/commands') {
+    return {
+      reply: [
+        'Available commands:',
+        '/help - list commands',
+        '/usage - token usage summary',
+        '/models - show suggested model names',
+        '/model - current LLM provider/model',
+        '/model <name> - set active model',
+        '/clear - clear chat history',
+      ].join('\n'),
+    };
+  }
+  if (command === '/models') {
+    const provider = llmConfig?.provider || 'anthropic';
+    const models = KNOWN_MODELS[provider] || [];
+    return {
+      reply: [
+        `Suggested ${provider} models:`,
+        ...models.map((m) => `- ${m}`),
+        '',
+        'Use: /model <name>',
+      ].join('\n'),
+    };
+  }
+  if (command === '/model') {
+    if (!arg) {
+      return {
+        reply: [
+          'Model settings:',
+          `Provider: ${llmConfig?.provider || 'server-default'}`,
+          `Model: ${llmConfig?.model || 'server-default'}`,
+          '',
+          'Use: /model <name> to change it',
+        ].join('\n'),
+      };
+    }
+    if (!llmConfig?.api_key) {
+      return { reply: 'Set your API key in ⚙️ first, then run /model <name>.' };
+    }
+    const next = { ...llmConfig, model: arg };
+    localStorage.setItem(LLM_CONFIG_KEY, JSON.stringify(next));
+    setLLMConfig(next);
+    return {
+      reply: [
+        'Model updated.',
+        `Provider: ${next.provider || 'server-default'}`,
+        `Model: ${next.model}`,
+      ].join('\n'),
+    };
+  }
+  if (command === '/clear') return { clear: true };
+  return { reply: `Unknown command: ${text}\nTry /help` };
 }
 
 function SourcesPanel({ sourceNotes, webSources }) {
@@ -84,10 +193,27 @@ export default function ChatPage() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
-    setLoading(true);
     setError(null);
     saveHistory(newMessages);
 
+    if (text.startsWith('/')) {
+      const commandResult = runLocalCommand(text, newMessages, llmConfig, setLLMConfig);
+      if (commandResult.clear) {
+        handleNewChat();
+        return;
+      }
+      const assistantMsg = {
+        role: 'assistant',
+        content: commandResult.reply,
+        cached: true,
+      };
+      const updated = [...newMessages, assistantMsg];
+      setMessages(updated);
+      saveHistory(updated);
+      return;
+    }
+
+    setLoading(true);
     try {
       const sessionId = localStorage.getItem(SESSION_KEY) || undefined;
       const history = newMessages.slice(-MAX_HISTORY).map(m => ({ role: m.role, content: m.content }));
@@ -109,6 +235,8 @@ export default function ChatPage() {
         sourceNotes: data.source_notes || [],
         webSources: data.web_sources || [],
         model: data.model,
+        inputTokens: data.input_tokens,
+        outputTokens: data.output_tokens,
         cached: data.cached,
       };
       const updated = [...newMessages, assistantMsg];
@@ -176,7 +304,7 @@ export default function ChatPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
-            placeholder="Ask your mentor… (Shift+Enter for new line)"
+            placeholder="Ask your mentor… (/help for commands, Shift+Enter for new line)"
             rows={2}
             className="flex-1 resize-none px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
