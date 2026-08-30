@@ -2,11 +2,12 @@
 Chat endpoint — POST /api/v1/chat
 """
 import uuid
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas import ChatRequest, ChatResponse, WebSource
+from app.schemas import ChatRequest, ChatResponse, WebSource, LLMConfig, ChatModelsResponse
 from app.models import ChatSession, ChatMessage
 from app.services.llm.factory import LLMProviderFactory
 from app.services.workflows.mentor_chat_workflow import MentorChatWorkflow
@@ -16,6 +17,60 @@ from app.utils.auth import require_read_access, Principal
 from app.utils.logger import log_event
 
 router = APIRouter()
+
+
+async def _fetch_provider_models(provider: str, api_key: str) -> list[str]:
+    provider = provider.lower()
+    timeout = httpx.Timeout(15.0)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        if provider in {"anthropic", "claude"}:
+            response = await client.get(
+                "https://api.anthropic.com/v1/models",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+            )
+            if response.status_code >= 400:
+                raise HTTPException(status_code=400, detail="Failed to fetch Anthropic models.")
+            payload = response.json()
+            raw_models = payload.get("data", []) or payload.get("models", [])
+            models = [
+                m.get("id")
+                for m in raw_models
+                if isinstance(m, dict) and isinstance(m.get("id"), str)
+            ]
+            return sorted(set(models))
+
+        if provider == "openai":
+            response = await client.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            if response.status_code >= 400:
+                raise HTTPException(status_code=400, detail="Failed to fetch OpenAI models.")
+            payload = response.json()
+            raw_models = payload.get("data", [])
+            models = [
+                m.get("id")
+                for m in raw_models
+                if isinstance(m, dict) and isinstance(m.get("id"), str)
+            ]
+            return sorted(set(models))
+
+    raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+
+
+@router.post("/chat/models", response_model=ChatModelsResponse)
+async def chat_models(
+    request: LLMConfig,
+    principal: Principal = Depends(require_read_access),
+):
+    """List provider models available to the supplied API key."""
+    _ = principal
+    models = await _fetch_provider_models(request.provider, request.api_key)
+    return ChatModelsResponse(provider=request.provider.lower(), models=models)
 
 
 @router.post("/chat", response_model=ChatResponse)

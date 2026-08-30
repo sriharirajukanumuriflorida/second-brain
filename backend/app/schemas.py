@@ -206,3 +206,9 @@ class ChatResponse(BaseModel):
     input_tokens: int
     output_tokens: int
     cached: bool = False
+
+
+class ChatModelsResponse(BaseModel):
+    """Available models for a provider and API key."""
+    provider: str
+    models: List[str] = []

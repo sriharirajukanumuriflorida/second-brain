@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { sendChatMessage } from '../api/client';
+import { sendChatMessage, listChatModels } from '../api/client';
 import LLMSettingsPanel, { loadLLMConfig } from '../components/chat/LLMSettingsPanel';
 
 const SESSION_KEY = 'chat_session_id';
@@ -60,7 +60,7 @@ function buildUsageReply(messages) {
   ].join('\n');
 }
 
-function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
+async function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
   const trimmed = text.trim();
   const parts = trimmed.split(/\s+/);
   const command = (parts[0] || '').toLowerCase();
@@ -73,7 +73,7 @@ function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
         'Available commands:',
         '/help - list commands',
         '/usage - token usage summary',
-        '/models - show suggested model names',
+        '/models - show example model names',
         '/model - current LLM provider/model',
         '/model <name> - set active model',
         '/clear - clear chat history',
@@ -81,13 +81,35 @@ function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
     };
   }
   if (command === '/models') {
+    let liveError = null;
+    if (llmConfig?.api_key) {
+      try {
+        const data = await listChatModels(llmConfig);
+        const models = Array.isArray(data.models) ? data.models : [];
+        if (models.length > 0) {
+          return {
+            reply: [
+              `Available ${data.provider} models for your key (${models.length}):`,
+              ...models.map((m) => `- ${m}`),
+              '',
+              'Use: /model <name>',
+            ].join('\n'),
+          };
+        }
+      } catch (err) {
+        liveError = err.response?.data?.detail || 'Could not fetch live model list.';
+      }
+    }
     const provider = llmConfig?.provider || 'anthropic';
     const models = KNOWN_MODELS[provider] || [];
     return {
       reply: [
-        `Suggested ${provider} models:`,
+        ...(liveError ? [`${liveError}`, ''] : []),
+        `Example ${provider} models:`,
         ...models.map((m) => `- ${m}`),
         '',
+        'Add your key in ⚙️ and run /models for account-specific list.',
+        'You can use any model your key supports.',
         'Use: /model <name>',
       ].join('\n'),
     };
@@ -100,6 +122,7 @@ function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
           `Provider: ${llmConfig?.provider || 'server-default'}`,
           `Model: ${llmConfig?.model || 'server-default'}`,
           '',
+          'Any provider-supported model name works here.',
           'Use: /model <name> to change it',
         ].join('\n'),
       };
@@ -197,19 +220,27 @@ export default function ChatPage() {
     saveHistory(newMessages);
 
     if (text.startsWith('/')) {
-      const commandResult = runLocalCommand(text, newMessages, llmConfig, setLLMConfig);
-      if (commandResult.clear) {
-        handleNewChat();
-        return;
+      setLoading(true);
+      try {
+        const commandResult = await runLocalCommand(text, newMessages, llmConfig, setLLMConfig);
+        if (commandResult.clear) {
+          handleNewChat();
+          return;
+        }
+        const assistantMsg = {
+          role: 'assistant',
+          content: commandResult.reply,
+          cached: true,
+        };
+        const updated = [...newMessages, assistantMsg];
+        setMessages(updated);
+        saveHistory(updated);
+      } catch (err) {
+        const detail = err.response?.data?.detail || 'Command failed. Please try again.';
+        setError(detail);
+      } finally {
+        setLoading(false);
       }
-      const assistantMsg = {
-        role: 'assistant',
-        content: commandResult.reply,
-        cached: true,
-      };
-      const updated = [...newMessages, assistantMsg];
-      setMessages(updated);
-      saveHistory(updated);
       return;
     }
 

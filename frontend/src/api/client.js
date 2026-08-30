@@ -110,5 +110,9 @@ export const sendChatMessage = async ({ message, sessionId, history = [], llmCon
   return response.data;
 };
 
-export default api;
+export const listChatModels = async (llmConfig) => {
+  const response = await api.post('/api/v1/chat/models', llmConfig);
+  return response.data;
+};
 
+export default api;
