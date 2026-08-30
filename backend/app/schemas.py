@@ -187,6 +187,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None          # UUID; created by backend if absent
     history: List[ChatHistoryMessage] = []    # last N turns from frontend
     llm_config: Optional[LLMConfig] = None   # user-supplied keys override server keys
+    allow_web_search: bool = False
 
 
 class WebSource(BaseModel):

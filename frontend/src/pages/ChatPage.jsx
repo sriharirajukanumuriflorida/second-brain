@@ -5,6 +5,7 @@ import LLMSettingsPanel, { loadLLMConfig } from '../components/chat/LLMSettingsP
 const SESSION_KEY = 'chat_session_id';
 const HISTORY_KEY = 'chat_history';
 const LLM_CONFIG_KEY = 'llm_config';
+const WEB_SEARCH_KEY = 'chat_web_search_enabled';
 const MAX_HISTORY = 10;
 const KNOWN_MODELS = {
   anthropic: [
@@ -82,9 +83,27 @@ async function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
         '/models - show example model names',
         '/model - current LLM provider/model',
         '/model <name> - set active model',
+        '/web - show web search status',
+        '/web on - allow web search',
+        '/web off - keep vault-only answers',
         '/clear - clear chat history',
       ].join('\n'),
     };
+  }
+  if (command === '/web') {
+    if (!arg) {
+      const enabled = localStorage.getItem(WEB_SEARCH_KEY) === '1';
+      return { reply: `Web search: ${enabled ? 'ON' : 'OFF'}\nUse /web on or /web off` };
+    }
+    if (arg.toLowerCase() === 'on') {
+      localStorage.setItem(WEB_SEARCH_KEY, '1');
+      return { reply: 'Web search enabled for this browser.' };
+    }
+    if (arg.toLowerCase() === 'off') {
+      localStorage.setItem(WEB_SEARCH_KEY, '0');
+      return { reply: 'Web search disabled. Chat will use vault-only context.' };
+    }
+    return { reply: 'Use /web on or /web off' };
   }
   if (command === '/models') {
     let liveError = null;
@@ -207,6 +226,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [llmConfig, setLLMConfig] = useState(loadLLMConfig);
+  const [allowWebSearch, setAllowWebSearch] = useState(() => localStorage.getItem(WEB_SEARCH_KEY) === '1');
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -229,6 +249,7 @@ export default function ChatPage() {
       setLoading(true);
       try {
         const commandResult = await runLocalCommand(text, newMessages, llmConfig, setLLMConfig);
+        setAllowWebSearch(localStorage.getItem(WEB_SEARCH_KEY) === '1');
         if (commandResult.clear) {
           handleNewChat();
           return;
@@ -260,6 +281,7 @@ export default function ChatPage() {
         sessionId,
         history,
         llmConfig,
+        allowWebSearch,
       });
 
       if (data.session_id && !localStorage.getItem(SESSION_KEY)) {
@@ -300,7 +322,9 @@ export default function ChatPage() {
       <div className="flex items-center justify-between py-3 px-1 border-b border-gray-200">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Mentor Chat</h1>
-          <p className="text-xs text-gray-500">Ask anything about your vault. I can search the web when needed.</p>
+          <p className="text-xs text-gray-500">
+            Ask anything about your vault. Web search is {allowWebSearch ? 'ON' : 'OFF'} ({allowWebSearch ? '/web off' : '/web on'}).
+          </p>
         </div>
         <button
           onClick={handleNewChat}

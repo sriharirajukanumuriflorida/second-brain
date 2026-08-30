@@ -127,7 +127,7 @@ async def chat(
         result = await workflow.execute({
             "message": request.message,
             "history": history,
-            "enable_web_search": True,
+            "enable_web_search": request.allow_web_search,
         })
 
         # Persist user + assistant messages
