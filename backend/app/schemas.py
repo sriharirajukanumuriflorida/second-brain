@@ -205,6 +205,7 @@ class ChatResponse(BaseModel):
     model: str
     input_tokens: int
     output_tokens: int
+    estimated_cost_usd: float = 0.0
     cached: bool = False
 
 

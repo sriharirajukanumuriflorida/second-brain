@@ -30,6 +30,10 @@ function formatInt(value) {
   return new Intl.NumberFormat().format(value);
 }
 
+function formatUsd(value) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+}
+
 function buildUsageReply(messages) {
   const assistantTurns = messages.filter(
     (m) => m.role === 'assistant' && Number.isFinite(m.inputTokens) && Number.isFinite(m.outputTokens)
@@ -43,9 +47,10 @@ function buildUsageReply(messages) {
       acc.input += turn.inputTokens;
       acc.output += turn.outputTokens;
       acc.cached += turn.cached ? 1 : 0;
+      acc.cost += Number.isFinite(turn.estimatedCostUsd) ? turn.estimatedCostUsd : 0;
       return acc;
     },
-    { input: 0, output: 0, cached: 0 }
+    { input: 0, output: 0, cached: 0, cost: 0 }
   );
   const total = totals.input + totals.output;
   const model = assistantTurns[assistantTurns.length - 1].model || 'unknown';
@@ -55,6 +60,7 @@ function buildUsageReply(messages) {
     `Input tokens: ${formatInt(totals.input)}`,
     `Output tokens: ${formatInt(totals.output)}`,
     `Total tokens: ${formatInt(total)}`,
+    `Estimated cost: ${formatUsd(totals.cost)}`,
     `Cached replies: ${totals.cached}`,
     `Last model: ${model}`,
   ].join('\n');
@@ -268,6 +274,7 @@ export default function ChatPage() {
         model: data.model,
         inputTokens: data.input_tokens,
         outputTokens: data.output_tokens,
+        estimatedCostUsd: data.estimated_cost_usd,
         cached: data.cached,
       };
       const updated = [...newMessages, assistantMsg];

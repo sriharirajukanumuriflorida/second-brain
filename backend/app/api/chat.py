@@ -168,11 +168,17 @@ async def chat(
             model=result["model"],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            estimated_cost_usd=result["estimated_cost_usd"],
             cached=result["cached"],
         )
 
     except HTTPException:
         raise
     except Exception as e:
+        if "`temperature` is deprecated for this model." in str(e):
+            raise HTTPException(
+                status_code=400,
+                detail="Selected model does not support temperature. Please choose a different model in chat settings.",
+            )
         log_event(db, "chat.failed", {"error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
