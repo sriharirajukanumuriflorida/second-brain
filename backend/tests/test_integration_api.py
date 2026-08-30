@@ -132,6 +132,14 @@ class TestVaultOnlyFiltering:
                 tags=json.dumps([]),
                 is_archived=False,
             ),
+            Note(
+                path="14 Agent Outputs/Phase 2 Responsive Web UI - Completion.md",
+                title="Phase 2: Responsive Web UI - Completion",
+                file_hash="d",
+                folder="14 Agent Outputs",
+                tags=json.dumps([]),
+                is_archived=False,
+            ),
         ])
         db_session.commit()
 

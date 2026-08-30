@@ -52,6 +52,7 @@ class HybridSearchService:
         db_query = self.db.query(Note).filter(
             Note.is_archived == False,
             or_(*[Note.folder.like(f"{digit}%") for digit in "0123456789"]),
+            Note.folder != "14 Agent Outputs",
         )
 
         if folder:
@@ -92,7 +93,10 @@ class HybridSearchService:
         """
         vec_literal = "[" + ",".join(repr(float(x)) for x in query_embedding) + "]"
 
-        obsidian_clause = "AND (" + " OR ".join([f"n.folder LIKE '{digit}%'" for digit in "0123456789"]) + ")"
+        obsidian_clause = (
+            "AND (" + " OR ".join([f"n.folder LIKE '{digit}%'" for digit in "0123456789"]) + ") "
+            "AND n.folder != '14 Agent Outputs'"
+        )
         folder_clause = f"AND n.folder = :folder {obsidian_clause}" if folder else obsidian_clause
         sql = text(f"""
             SELECT n.id AS note_id, n.path, n.title, n.folder,

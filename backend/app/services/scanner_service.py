@@ -7,6 +7,7 @@ from typing import Generator
 
 class ScannerService:
     """Service for scanning vault for markdown files."""
+    EXCLUDED_TOP_LEVEL_FOLDERS = {"14 Agent Outputs"}
 
     def __init__(self, vault_path: Path):
         self.vault_path = vault_path
@@ -21,7 +22,8 @@ class ScannerService:
                 ".obsidian" in str(file_path) or
                 file_path.name.startswith(".") or
                 "99 Archive" in str(file_path) or
-                not root_folder[:1].isdigit()
+                not root_folder[:1].isdigit() or
+                root_folder in self.EXCLUDED_TOP_LEVEL_FOLDERS
             ):
                 continue
             yield file_path

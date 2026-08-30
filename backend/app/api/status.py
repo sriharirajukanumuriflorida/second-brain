@@ -22,6 +22,7 @@ async def get_status(
     total_notes = db.query(Note).filter(
         Note.is_archived == False,
         or_(*[Note.folder.like(f"{digit}%") for digit in "0123456789"]),
+        Note.folder != "14 Agent Outputs",
     ).count()
 
     # Get last sync event

@@ -72,9 +72,11 @@ class TestScannerService:
         (vault / "02 Literature Notes").mkdir()
         (vault / "backend").mkdir()
         (vault / "frontend").mkdir()
+        (vault / "14 Agent Outputs").mkdir()
         (vault / "02 Literature Notes" / "note.md").write_text("# Note", encoding="utf-8")
         (vault / "backend" / "README.md").write_text("# Backend", encoding="utf-8")
         (vault / "frontend" / "README.md").write_text("# Frontend", encoding="utf-8")
+        (vault / "14 Agent Outputs" / "note.md").write_text("# Agent Output", encoding="utf-8")
         (vault / "README.md").write_text("# Root", encoding="utf-8")
 
         files = list(ScannerService(vault).scan_markdown_files())

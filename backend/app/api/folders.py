@@ -13,6 +13,7 @@ from app.utils.auth import require_read_access, Principal
 router = APIRouter()
 
 obsidian_folder_filter = or_(*[Note.folder.like(f"{digit}%") for digit in "0123456789"])
+excluded_folder_filter = Note.folder != "14 Agent Outputs"
 
 
 @router.get("/folders", response_model=List[FolderResponse])
@@ -28,6 +29,8 @@ async def list_folders(
         Note.is_archived == False
     ).filter(
         obsidian_folder_filter
+    ).filter(
+        excluded_folder_filter
     ).group_by(Note.folder).all()
 
     return [
