@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 function Header({ onMobileMenuToggle, user, onLogout }) {
   return (
@@ -19,43 +19,6 @@ function Header({ onMobileMenuToggle, user, onLogout }) {
         </div>
 
         <div className="flex items-center space-x-4">
-          <nav className="hidden md:flex space-x-6">
-            <NavLink
-              to="/notes"
-              className={({ isActive }) =>
-                isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
-              }
-            >
-              Notes
-            </NavLink>
-            <NavLink
-              to="/search"
-              className={({ isActive }) =>
-                isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
-              }
-            >
-              Search
-            </NavLink>
-            <NavLink
-              to="/dashboard"
-              className={({ isActive }) =>
-                isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
-              }
-            >
-              Dashboard
-            </NavLink>
-            {user?.role === 'admin' && (
-              <NavLink
-                to="/admin"
-                className={({ isActive }) =>
-                  isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
-                }
-              >
-                Admin
-              </NavLink>
-            )}
-          </nav>
-          
           {user && (
             <div className="flex items-center space-x-3">
               <img 

@@ -293,7 +293,7 @@ export default function ChatPage() {
       <div className="flex items-center justify-between py-3 px-1 border-b border-gray-200">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Mentor Chat</h1>
-          <p className="text-xs text-gray-500">Ask anything about your vault. The LLM can search the web when needed.</p>
+          <p className="text-xs text-gray-500">Ask anything about your vault. I can search the web when needed.</p>
         </div>
         <button
           onClick={handleNewChat}
