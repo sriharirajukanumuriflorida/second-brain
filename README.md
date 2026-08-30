@@ -1,5 +1,10 @@
 # Second Brain / FDE Vault Agent Platform
 
+[![CI/CD](https://github.com/sriharirajukanumuriflorida/second-brain/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/sriharirajukanumuriflorida/second-brain/actions)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![Node 18+](https://img.shields.io/badge/node-18%2B-green)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A personal knowledge base built on an Obsidian vault. The app syncs markdown notes from GitHub, indexes them, and exposes search, browsing, status, and chat through a FastAPI backend and a React frontend.
 
 It keeps vault content read-only, supports GitHub OAuth for protected actions, and keeps temporary read-only share links separate for visitors.
@@ -12,6 +17,18 @@ It keeps vault content read-only, supports GitHub OAuth for protected actions, a
 - Shows sync and vault status in the UI
 - Supports GitHub OAuth login
 - Supports temporary read-only share links
+
+## Why this approach
+
+**Cost efficiency with LLMs:**
+Traditional LLM-based search queries the entire internet, which is expensive in tokens and time. This second brain solution trades breadth for relevance by indexing only your personal knowledge base:
+
+- **Fewer tokens**: Semantic search queries only your notes, not the web
+- **Faster responses**: Local indexing is instant; no external API latency
+- **Cheaper**: No per-query cost to large language models for broad internet searches
+- **Privacy**: Your knowledge stays in your vault, not sent to external APIs
+
+Example: A question that would cost 500+ tokens via a general LLM search (with web results) costs under 50 tokens when queried against your indexed vault. For frequent searches, the savings compound quickly.
 
 ## Tech stack
 
