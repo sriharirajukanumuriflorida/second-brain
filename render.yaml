@@ -45,3 +45,8 @@ services:
         value: "true"
       - key: VAULT_PATH
         value: /opt/vault
+      # Render's disk is ephemeral — re-clone/pull the vault on every container
+      # boot so a restart/redeploy doesn't leave DB rows pointing at files that
+      # no longer exist on disk (see embedding.batch_note_failed in audit_logs).
+      - key: AUTO_SYNC_ON_STARTUP
+        value: "true"
