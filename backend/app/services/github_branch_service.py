@@ -17,7 +17,7 @@ class GitHubBranchService:
     def __init__(self, db: Session):
         self.db = db
         self.github = Github(settings.github_pat) if settings.github_pat else None
-        self.vault_path = Path(settings.vault_path)
+        self.vault_path = settings.vault_path_resolved
 
     def generate_branch_name(self, workflow_type: str) -> str:
         """Generate branch name following convention."""

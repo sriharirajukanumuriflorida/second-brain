@@ -105,7 +105,7 @@ class CompactionWorkflow(BaseWorkflow):
         for note in notes:
             body = ""
             try:
-                with open(settings.vault_path / note.path, "r", encoding="utf-8") as f:
+                with open(settings.vault_path_resolved / note.path, "r", encoding="utf-8") as f:
                     body = f.read()[:_MAX_BODY_CHARS]
             except OSError:
                 body = "(body unavailable)"
