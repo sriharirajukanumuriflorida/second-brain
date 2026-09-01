@@ -145,4 +145,14 @@ export const listChatModels = async (llmConfig) => {
   return response.data;
 };
 
+export const getChatUsage = async (sessionId) => {
+  const response = await api.get(`/api/v1/chat/usage/${sessionId}`);
+  return response.data;
+};
+
+export const getChatAccountUsage = async (llmConfig) => {
+  const response = await api.post('/api/v1/chat/usage/account', llmConfig);
+  return response.data;
+};
+
 export default api;

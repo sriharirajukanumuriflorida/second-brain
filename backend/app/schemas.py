@@ -3,7 +3,7 @@ Pydantic schemas for API requests and responses.
 """
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 
 
 class HealthResponse(BaseModel):
@@ -247,3 +247,21 @@ class ChatModelsResponse(BaseModel):
     """Available models for a provider and API key."""
     provider: str
     models: List[str] = []
+
+
+class ChatUsageResponse(BaseModel):
+    """Aggregated usage for a chat session."""
+    session_id: str
+    turns: int
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    estimated_cost_usd: float
+    cached_replies: int
+    last_model: Optional[str] = None
+
+
+class ChatAccountUsageResponse(BaseModel):
+    """Account-level usage payload from LLM provider APIs."""
+    provider: str
+    usage: Dict[str, Any]

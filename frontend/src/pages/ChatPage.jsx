@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { sendChatMessage, listChatModels } from '../api/client';
+import { sendChatMessage, listChatModels, getChatUsage, getChatAccountUsage } from '../api/client';
 import LLMSettingsPanel, { loadLLMConfig } from '../components/chat/LLMSettingsPanel';
 
 const SESSION_KEY = 'chat_session_id';
@@ -7,18 +7,6 @@ const HISTORY_KEY = 'chat_history';
 const LLM_CONFIG_KEY = 'llm_config';
 const WEB_SEARCH_KEY = 'chat_web_search_enabled';
 const MAX_HISTORY = 10;
-const KNOWN_MODELS = {
-  anthropic: [
-    'claude-3-5-sonnet-20241022',
-    'claude-3-5-haiku-20241022',
-    'claude-3-opus-20240229',
-  ],
-  openai: [
-    'gpt-4o',
-    'gpt-4o-mini',
-    'o3-mini',
-  ],
-};
 
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
@@ -67,20 +55,62 @@ function buildUsageReply(messages) {
   ].join('\n');
 }
 
-async function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
+function buildUsageReplyFromServer(usage) {
+  return [
+    `Usage (${usage.turns} turns)`,
+    `Input tokens: ${formatInt(usage.input_tokens)}`,
+    `Output tokens: ${formatInt(usage.output_tokens)}`,
+    `Total tokens: ${formatInt(usage.total_tokens)}`,
+    `Estimated cost: ${formatUsd(usage.estimated_cost_usd || 0)}`,
+    `Cached replies: ${usage.cached_replies || 0}`,
+    `Last model: ${usage.last_model || 'unknown'}`,
+  ].join('\n');
+}
+
+function buildAccountUsageReply(data) {
+  return [
+    `Account usage (${data.provider})`,
+    'Raw provider payload:',
+    JSON.stringify(data.usage || {}, null, 2),
+  ].join('\n');
+}
+
+async function runLocalCommand(text, messages, llmConfig, setLLMConfig, sessionId) {
   const trimmed = text.trim();
   const parts = trimmed.split(/\s+/);
   const command = (parts[0] || '').toLowerCase();
   const arg = parts.slice(1).join(' ').trim();
 
-  if (command === '/usage') return { reply: buildUsageReply(messages) };
+  if (command === '/usage') {
+    if (arg.toLowerCase() === 'account') {
+      if (!llmConfig?.api_key) {
+        return { reply: 'Set provider + API key in ⚙️, then run /usage account.' };
+      }
+      try {
+        const data = await getChatAccountUsage(llmConfig);
+        return { reply: buildAccountUsageReply(data) };
+      } catch (err) {
+        const detail = err.response?.data?.detail || 'Could not fetch account usage.';
+        return { reply: detail };
+      }
+    }
+    if (!sessionId) return { reply: buildUsageReply(messages) };
+    try {
+      const usage = await getChatUsage(sessionId);
+      return { reply: buildUsageReplyFromServer(usage) };
+    } catch {
+      return { reply: buildUsageReply(messages) };
+    }
+  }
   if (command === '/help' || command === '/commands') {
     return {
       reply: [
         'Available commands:',
         '/help - list commands',
-        '/usage - token usage summary',
-        '/models - show example model names',
+        '/commands - alias for /help',
+        '/usage - session token usage summary',
+        '/usage account - account-wide provider usage',
+        '/models - show models available for your API key',
         '/model - current LLM provider/model',
         '/model <name> - set active model',
         '/web - show web search status',
@@ -106,38 +136,24 @@ async function runLocalCommand(text, messages, llmConfig, setLLMConfig) {
     return { reply: 'Use /web on or /web off' };
   }
   if (command === '/models') {
-    let liveError = null;
-    if (llmConfig?.api_key) {
-      try {
-        const data = await listChatModels(llmConfig);
-        const models = Array.isArray(data.models) ? data.models : [];
-        if (models.length > 0) {
-          return {
-            reply: [
-              `Available ${data.provider} models for your key (${models.length}):`,
-              ...models.map((m) => `- ${m}`),
-              '',
-              'Use: /model <name>',
-            ].join('\n'),
-          };
-        }
-      } catch (err) {
-        liveError = err.response?.data?.detail || 'Could not fetch live model list.';
-      }
+    if (!llmConfig?.api_key) {
+      return { reply: 'Set provider + API key in ⚙️, then run /models.' };
     }
-    const provider = llmConfig?.provider || 'anthropic';
-    const models = KNOWN_MODELS[provider] || [];
-    return {
-      reply: [
-        ...(liveError ? [`${liveError}`, ''] : []),
-        `Example ${provider} models:`,
-        ...models.map((m) => `- ${m}`),
-        '',
-        'Add your key in ⚙️ and run /models for account-specific list.',
-        'You can use any model your key supports.',
-        'Use: /model <name>',
-      ].join('\n'),
-    };
+    try {
+      const data = await listChatModels(llmConfig);
+      const models = Array.isArray(data.models) ? data.models : [];
+      return {
+        reply: [
+          `Available ${data.provider} models for your key (${models.length}):`,
+          ...models.map((m) => `- ${m}`),
+          '',
+          'Use: /model <name>',
+        ].join('\n'),
+      };
+    } catch (err) {
+      const detail = err.response?.data?.detail || 'Could not fetch live model list.';
+      return { reply: detail };
+    }
   }
   if (command === '/model') {
     if (!arg) {
@@ -248,7 +264,13 @@ export default function ChatPage() {
     if (text.startsWith('/')) {
       setLoading(true);
       try {
-        const commandResult = await runLocalCommand(text, newMessages, llmConfig, setLLMConfig);
+        const commandResult = await runLocalCommand(
+          text,
+          newMessages,
+          llmConfig,
+          setLLMConfig,
+          localStorage.getItem(SESSION_KEY) || undefined
+        );
         setAllowWebSearch(localStorage.getItem(WEB_SEARCH_KEY) === '1');
         if (commandResult.clear) {
           handleNewChat();
