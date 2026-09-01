@@ -105,6 +105,41 @@ class TestSearchEndpoint:
         assert "RAG Evaluation Metrics" in titles
 
 
+class TestRelatedNotes:
+    def _add(self, db, title, folder="03 Permanent Notes"):
+        note = Note(
+            path=f"{folder}/{title}.md",
+            title=title,
+            file_hash="h",
+            folder=folder,
+            tags=json.dumps([]),
+            is_archived=False,
+        )
+        db.add(note)
+        db.commit()
+        return note
+
+    def test_related_requires_read_access(self, client, db_session):
+        note = self._add(db_session, "Some Note")
+        assert client.get(f"{API}/notes/{note.id}/related").status_code == 401
+
+    def test_related_empty_on_sqlite(self, client, db_session, auth):
+        """No pgvector on SQLite -> endpoint returns [] rather than erroring."""
+        note = self._add(db_session, "Vector Note")
+        r = client.get(f"{API}/notes/{note.id}/related", headers=auth["headers"])
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_related_404_for_agent_outputs(self, client, db_session, auth):
+        note = self._add(db_session, "Hidden", folder="14 Agent Outputs")
+        r = client.get(f"{API}/notes/{note.id}/related", headers=auth["headers"])
+        assert r.status_code == 404
+
+    def test_related_404_for_missing(self, client, auth):
+        r = client.get(f"{API}/notes/99999/related", headers=auth["headers"])
+        assert r.status_code == 404
+
+
 class TestVaultOnlyFiltering:
     def test_notes_folders_and_search_skip_repo_docs(self, client, db_session, auth):
         db_session.add_all([

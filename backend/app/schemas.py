@@ -108,6 +108,16 @@ class SearchResult(BaseModel):
     score: float = 1.0
 
 
+class RelatedNote(BaseModel):
+    """A semantically similar note (kNN over embeddings)."""
+
+    id: int
+    path: str
+    title: str
+    folder: str
+    score: float = 0.0
+
+
 class WorkflowRequest(BaseModel):
     """Workflow request."""
     workflow_type: str
@@ -130,6 +140,29 @@ class WorkflowResponse(BaseModel):
     estimated_cost_usd: float
     model: str
     provider: str
+
+
+class CompactionRequest(BaseModel):
+    """Compaction / LLM-wiki request."""
+    topic: str
+    title: Optional[str] = None  # PR / note title; defaults from topic
+    dry_run: bool = False  # preview content without opening a PR
+
+
+class CompactionResponse(BaseModel):
+    """Compaction / LLM-wiki response."""
+    status: str
+    topic: str
+    content: str
+    source_notes: list[str]
+    estimated_cost_usd: float
+    model: str
+    provider: str
+    # PR fields present only when dry_run is False and a PR was opened.
+    pr_number: Optional[int] = None
+    pr_url: Optional[str] = None
+    branch_name: Optional[str] = None
+    file_path: Optional[str] = None
 
 
 class GitHubWorkflowRequest(BaseModel):

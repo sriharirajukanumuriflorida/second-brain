@@ -61,6 +61,13 @@ export const getNote = async (noteId) => {
   return response.data;
 };
 
+// Semantically related notes (kNN over embeddings). Returns [] when semantic
+// search isn't available (SQLite / no embeddings).
+export const getRelatedNotes = async (noteId, limit = 5) => {
+  const response = await api.get(`/api/v1/notes/${noteId}/related`, { params: { limit } });
+  return response.data;
+};
+
 // Folders
 export const getFolders = async () => {
   const response = await api.get('/api/v1/folders');
@@ -97,6 +104,29 @@ export const listAccessLinks = async () => {
 
 export const revokeAccessLink = async (id) => {
   const response = await api.post(`/api/v1/access/${id}/revoke`);
+  return response.data;
+};
+
+// Embeddings (admin) — semantic-search index management.
+export const getEmbeddingStatus = async () => {
+  const response = await api.get('/api/v1/embeddings/status');
+  return response.data;
+};
+
+// Backfill embeddings across the vault. only_missing=true is safe to re-run.
+export const generateAllEmbeddings = async (onlyMissing = true, limit = null) => {
+  const body = { only_missing: onlyMissing };
+  if (limit != null) body.limit = limit;
+  const response = await api.post('/api/v1/embeddings/generate-all', body);
+  return response.data;
+};
+
+// Compaction / LLM-wiki (admin). dryRun=true previews content without a PR;
+// dryRun=false opens a PR adding the compiled page under 14 Agent Outputs/.
+export const runCompaction = async (topic, { dryRun = true, title = null } = {}) => {
+  const body = { topic, dry_run: dryRun };
+  if (title) body.title = title;
+  const response = await api.post('/api/v1/workflows/compaction', body);
   return response.data;
 };
 

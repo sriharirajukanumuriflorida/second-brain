@@ -10,6 +10,7 @@ from app.services.workflows.solution_brief_workflow import SolutionBriefWorkflow
 from app.services.workflows.knowledge_refresh_workflow import KnowledgeRefreshWorkflow
 from app.services.workflows.technology_radar_workflow import TechnologyRadarWorkflow
 from app.services.workflows.research_gap_workflow import ResearchGapWorkflow
+from app.services.workflows.compaction_workflow import CompactionWorkflow
 
 
 class WorkflowFactory:
@@ -36,5 +37,7 @@ class WorkflowFactory:
             return TechnologyRadarWorkflow(db, llm_provider)
         elif workflow_type == "research-gap" or workflow_type == "research-gap-analysis":
             return SolutionBriefWorkflow(db, llm_provider)
+        elif workflow_type == "compaction" or workflow_type == "compaction-wiki":
+            return CompactionWorkflow(db, llm_provider)
         else:
             raise ValueError(f"Unsupported workflow type: {workflow_type}")

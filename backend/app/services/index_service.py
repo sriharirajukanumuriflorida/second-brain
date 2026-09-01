@@ -22,12 +22,19 @@ class IndexService:
         self.scanner = ScannerService(vault_path)
 
     def index_vault(self) -> dict:
-        """Index all markdown files in vault."""
+        """Index all markdown files in vault.
+
+        Returns stats plus ``changed_paths``: the relative paths of notes that
+        were created or had their content change this run (skipped/unchanged
+        notes are excluded). The sync flow uses this to embed only what
+        changed, mirroring the content-hash incremental indexing here.
+        """
         stats = {
             "processed": 0,
             "indexed": 0,
             "updated": 0,
-            "skipped": 0
+            "skipped": 0,
+            "changed_paths": []
         }
 
         for file_path in self.scanner.scan_markdown_files():
@@ -74,6 +81,7 @@ class IndexService:
                     existing_note.frontmatter = extract_frontmatter_yaml(frontmatter)
                     existing_note.last_indexed_at = datetime.utcnow()
                     stats["updated"] += 1
+                    stats["changed_paths"].append(relative_path)
                 else:
                     # Create new note
                     note = Note(
@@ -89,6 +97,7 @@ class IndexService:
                     )
                     self.db.add(note)
                     stats["indexed"] += 1
+                    stats["changed_paths"].append(relative_path)
 
             except Exception as e:
                 print(f"Error indexing {relative_path}: {e}")

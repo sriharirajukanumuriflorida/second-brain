@@ -29,11 +29,25 @@ class EmbeddingService:
     async def generate_embeddings_for_note(
         self,
         note: Note,
-        content: str
+        content: str,
+        replace_existing: bool = True
     ) -> Dict[str, Any]:
-        """Generate embeddings for a note."""
+        """Generate embeddings for a note.
+
+        When ``replace_existing`` is True (the default, used by the sync flow),
+        the note's existing chunks are deleted first. Re-chunking changed
+        content shifts chunk boundaries and hashes, so without this the old
+        chunks would linger as orphans and pollute semantic search results.
+        """
         try:
             log_event(self.db, "embedding.started", {"note_id": note.id, "path": note.path})
+
+            if replace_existing:
+                deleted = self.db.query(EmbeddingChunk).filter(
+                    EmbeddingChunk.note_id == note.id
+                ).delete()
+                if deleted:
+                    self.db.commit()
 
             # Prepare metadata
             metadata = {

@@ -16,6 +16,23 @@ from typing import Optional
 router = APIRouter()
 
 
+def build_embedding_provider():
+    """Create the embedding provider from config.
+
+    Uses embedding_provider/embedding_model, and the dedicated embedding key
+    when set, otherwise falls back to the LLM key (config allows sharing).
+    Raises HTTPException(503) when no key is configured.
+    """
+    api_key = settings.embedding_api_key or settings.llm_api_key
+    if not api_key:
+        raise HTTPException(status_code=503, detail="No embedding API key configured")
+    return EmbeddingProviderFactory.create_provider(
+        provider=settings.embedding_provider,
+        api_key=api_key,
+        model=settings.embedding_model,
+    )
+
+
 class EmbeddingRequest(BaseModel):
     """Embedding request."""
     note_id: int = Field(..., description="Note ID to generate embeddings for")
@@ -49,12 +66,8 @@ async def generate_embeddings(
 ):
     """Generate embeddings for a note."""
     try:
-        # Create embedding provider
-        embedding_provider = EmbeddingProviderFactory.create_provider(
-            provider="openai",
-            api_key=settings.llm_api_key,
-            model="text-embedding-3-small"
-        )
+        # Create embedding provider from config
+        embedding_provider = build_embedding_provider()
 
         # Get note
         from app.models import Note
@@ -95,12 +108,8 @@ async def re_embed_stale(
 ):
     """Re-embed stale chunks."""
     try:
-        # Create embedding provider
-        embedding_provider = EmbeddingProviderFactory.create_provider(
-            provider="openai",
-            api_key=settings.llm_api_key,
-            model="text-embedding-3-small"
-        )
+        # Create embedding provider from config
+        embedding_provider = build_embedding_provider()
 
         embedding_service = EmbeddingService(db, embedding_provider)
         result = await embedding_service.re_embed_stale_chunks(request.limit)
@@ -112,6 +121,86 @@ async def re_embed_stale(
 
     except Exception as e:
         log_event(db, "re-embed.failed", {"error": str(e)})
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class GenerateAllRequest(BaseModel):
+    """Batch embedding request."""
+    only_missing: bool = Field(
+        default=True,
+        description="If true, only embed notes that have no chunks yet (backfill). If false, re-embed all notes."
+    )
+    limit: Optional[int] = Field(default=None, description="Max notes to process this call (None = all)")
+
+
+class GenerateAllResponse(BaseModel):
+    """Batch embedding response."""
+    status: str
+    notes_embedded: int
+    notes_failed: int
+    notes_skipped: int
+
+
+@router.post("/embeddings/generate-all", response_model=GenerateAllResponse)
+async def generate_all_embeddings(
+    request: GenerateAllRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_admin),
+):
+    """Backfill embeddings across the vault.
+
+    Reads note bodies from VAULT_PATH on demand. By default only processes
+    notes that have no chunks yet, so it is safe to re-run. Runs inline
+    (admin-triggered); for large first-time backfills the caller can page
+    with ``limit``.
+    """
+    from app.models import Note, EmbeddingChunk
+
+    try:
+        embedding_provider = build_embedding_provider()
+        embedding_service = EmbeddingService(db, embedding_provider)
+        vault_path = settings.vault_path
+
+        notes = db.query(Note).order_by(Note.id).all()
+
+        embedded = 0
+        failed = 0
+        skipped = 0
+
+        for note in notes:
+            if request.limit is not None and embedded >= request.limit:
+                break
+
+            if request.only_missing:
+                has_chunks = db.query(EmbeddingChunk).filter(
+                    EmbeddingChunk.note_id == note.id
+                ).first() is not None
+                if has_chunks:
+                    skipped += 1
+                    continue
+
+            note_path = vault_path / note.path
+            try:
+                with open(note_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                await embedding_service.generate_embeddings_for_note(note, content)
+                embedded += 1
+            except Exception as e:
+                log_event(db, "embedding.batch_note_failed", {"path": note.path, "error": str(e)})
+                failed += 1
+                continue
+
+        return GenerateAllResponse(
+            status="completed",
+            notes_embedded=embedded,
+            notes_failed=failed,
+            notes_skipped=skipped,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_event(db, "embedding.batch_failed", {"error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
 

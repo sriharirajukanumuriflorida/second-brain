@@ -5,6 +5,11 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy import text, or_
 from sqlalchemy.orm import Session
 from app.models import Note, EmbeddingChunk
+from app.config import settings
+
+# Cap the filesystem fallback scan so a keyword-only deployment with many
+# un-embedded notes never turns a search into an unbounded disk walk.
+_FS_SCAN_CAP = 400
 
 
 class HybridSearchService:
@@ -48,35 +53,109 @@ class HybridSearchService:
         folder: Optional[str],
         limit: int
     ) -> List[Dict[str, Any]]:
-        """Keyword search over note title and frontmatter."""
-        db_query = self.db.query(Note).filter(
+        """Keyword search over note title, frontmatter, and body.
+
+        Body coverage comes from two sources, unioned by note id:
+          1. EmbeddingChunk.content — the chunked note body, already in the DB
+             once a note is embedded. Pure SQL, no disk access.
+          2. Filesystem fallback — for notes with no chunks yet (e.g. keyword-
+             only / un-embedded deployments), read the .md from VAULT_PATH and
+             substring-match. Bounded by _FS_SCAN_CAP so it can't run away.
+        Title/frontmatter matches outrank body-only matches.
+        """
+        base_filters = [
             Note.is_archived == False,
             or_(*[Note.folder.like(f"{digit}%") for digit in "0123456789"]),
             Note.folder != "14 Agent Outputs",
-        )
-
-        if folder:
-            db_query = db_query.filter(Note.folder == folder)
-
-        search_pattern = f"%{query}%"
-        db_query = db_query.filter(
-            (Note.title.ilike(search_pattern)) |
-            (Note.frontmatter.ilike(search_pattern))
-        )
-
-        results = db_query.limit(limit).all()
-
-        return [
-            {
-                "id": note.id,
-                "path": note.path,
-                "title": note.title,
-                "folder": note.folder,
-                "score": 1.0,
-                "search_type": "keyword"
-            }
-            for note in results
         ]
+        if folder:
+            base_filters.append(Note.folder == folder)
+
+        pattern = f"%{query}%"
+
+        # 1) Title / frontmatter matches (strong signal -> score 1.0).
+        meta_notes = (
+            self.db.query(Note)
+            .filter(*base_filters)
+            .filter((Note.title.ilike(pattern)) | (Note.frontmatter.ilike(pattern)))
+            .limit(limit)
+            .all()
+        )
+
+        merged: Dict[int, Dict[str, Any]] = {}
+        for note in meta_notes:
+            merged[note.id] = self._kw_row(note, 1.0)
+
+        # 2) Body matches via embedded chunk content (weaker signal -> 0.7).
+        if len(merged) < limit:
+            chunk_notes = (
+                self.db.query(Note)
+                .join(EmbeddingChunk, EmbeddingChunk.note_id == Note.id)
+                .filter(*base_filters)
+                .filter(EmbeddingChunk.content.ilike(pattern))
+                .distinct()
+                .limit(limit)
+                .all()
+            )
+            for note in chunk_notes:
+                if note.id not in merged:
+                    merged[note.id] = self._kw_row(note, 0.7)
+
+        # 3) Filesystem fallback for notes that have no chunks yet.
+        if len(merged) < limit:
+            self._body_scan_fallback(query, base_filters, merged, limit)
+
+        return sorted(merged.values(), key=lambda r: r["score"], reverse=True)[:limit]
+
+    def _kw_row(self, note: Note, score: float) -> Dict[str, Any]:
+        return {
+            "id": note.id,
+            "path": note.path,
+            "title": note.title,
+            "folder": note.folder,
+            "score": score,
+            "search_type": "keyword",
+        }
+
+    def _body_scan_fallback(
+        self,
+        query: str,
+        base_filters: list,
+        merged: Dict[int, Dict[str, Any]],
+        limit: int,
+    ) -> None:
+        """Substring-scan .md bodies for notes lacking embedded chunks.
+
+        Reads from VAULT_PATH on demand (per the filesystem-on-demand design).
+        Only considers notes with no chunks and not already matched, and stops
+        after _FS_SCAN_CAP files or once `limit` results are reached.
+        """
+        needle = query.lower()
+        if not needle:
+            return
+
+        embedded_ids = {row[0] for row in self.db.query(EmbeddingChunk.note_id).distinct().all()}
+
+        candidates = (
+            self.db.query(Note)
+            .filter(*base_filters)
+            .order_by(Note.last_indexed_at.desc())
+            .limit(_FS_SCAN_CAP)
+            .all()
+        )
+
+        for note in candidates:
+            if len(merged) >= limit:
+                break
+            if note.id in merged or note.id in embedded_ids:
+                continue
+            note_file = settings.vault_path / note.path
+            try:
+                with open(note_file, "r", encoding="utf-8") as f:
+                    if needle in f.read().lower():
+                        merged[note.id] = self._kw_row(note, 0.7)
+            except OSError:
+                continue
 
     def _semantic_search(
         self,

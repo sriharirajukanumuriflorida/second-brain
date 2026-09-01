@@ -1,5 +1,9 @@
 # FastAPI and server
 fastapi==0.115.0
+# Pinned explicitly: FastAPI 0.115 needs starlette<0.39, but the mcp package
+# would otherwise pull a much newer Starlette and break the app. Keep in sync
+# with FastAPI's supported range if FastAPI is upgraded.
+starlette==0.38.6
 uvicorn[standard]==0.30.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
@@ -27,6 +31,11 @@ requests==2.31.0
 
 # Security and rate limiting
 slowapi==0.1.9
+
+# MCP server (exposes the vault to MCP clients like Claude Desktop/Code).
+# Pinned: newer mcp pulls Starlette >=1.0 which conflicts with FastAPI 0.115's
+# starlette<0.39 ceiling. mcp 1.2.1 works with the app's Starlette range.
+mcp==1.2.1
 
 # Utilities
 python-multipart==0.0.6

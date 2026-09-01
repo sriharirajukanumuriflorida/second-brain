@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getNote } from '../api/client';
+import { getNote, getRelatedNotes } from '../api/client';
 
 function NotePage() {
   const { id } = useParams();
   const [note, setNote] = useState(null);
+  const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     loadNote();
+    loadRelated();
   }, [id]);
 
   const loadNote = async () => {
@@ -22,6 +24,16 @@ function NotePage() {
       setError('Note not found');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRelated = async () => {
+    try {
+      const data = await getRelatedNotes(id);
+      setRelated(data);
+    } catch (err) {
+      // Non-fatal: related notes just don't render.
+      setRelated([]);
     }
   };
 
@@ -74,6 +86,24 @@ function NotePage() {
             <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
               {note.backlinks.map((link) => (
                 <li key={link}>{link}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {related.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-gray-900 mb-2">Related Notes</h2>
+            <ul className="space-y-1">
+              {related.map((rel) => (
+                <li key={rel.id} className="flex items-center justify-between gap-2 text-sm">
+                  <Link to={`/notes/${rel.id}`} className="text-blue-600 hover:text-blue-700 truncate">
+                    {rel.title}
+                  </Link>
+                  <span className="shrink-0 text-xs text-gray-400">
+                    {Math.round(rel.score * 100)}%
+                  </span>
+                </li>
               ))}
             </ul>
           </div>
