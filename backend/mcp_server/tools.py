@@ -46,7 +46,7 @@ def fetch_note(db: Session, note_id: Optional[int] = None, path: Optional[str] =
 
     body = ""
     try:
-        with open(settings.vault_path / note.path, "r", encoding="utf-8") as f:
+        with open(settings.vault_path_resolved / note.path, "r", encoding="utf-8") as f:
             body = f.read()
     except OSError:
         body = ""

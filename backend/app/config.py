@@ -29,6 +29,12 @@ class Settings(BaseSettings):
 
     # Vault configuration
     vault_path: Path = Path("./vault_clone")
+    # On hosts with an ephemeral filesystem (e.g. Render free tier) the cloned
+    # vault is wiped on every restart/deploy. When true, the backend re-syncs
+    # the vault (clone + index + embed changed notes) in the background on
+    # startup so file-reading features work without a manual sync. Off by
+    # default so local dev and tests don't clone on boot.
+    auto_sync_on_startup: bool = False
 
     # Database configuration
     database_url: str = "sqlite:///./vault.db"
@@ -47,6 +53,23 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Parse the comma-separated CORS origins into a clean list."""
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
+
+    @property
+    def vault_path_resolved(self) -> Path:
+        """Vault path as an absolute Path, anchored to the backend dir.
+
+        A relative VAULT_PATH (e.g. the default "./vault_clone") otherwise
+        resolves against the process working directory, which is not
+        guaranteed on hosts like Render — that caused reads like
+        'vault_clone/<note>.md' to fail with No such file or directory. An
+        absolute VAULT_PATH is respected as-is.
+        """
+        p = Path(self.vault_path)
+        if p.is_absolute():
+            return p
+        # backend/ dir = two levels up from this file (app/config.py).
+        backend_dir = Path(__file__).resolve().parent.parent
+        return (backend_dir / p).resolve()
 
     # Logging configuration
     log_level: str = "INFO"

@@ -52,16 +52,50 @@ app.include_router(chat.router, prefix=settings.api_prefix, tags=["Chat"])
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup.
+    """Initialize database on startup, and optionally re-sync the vault.
 
     Skipped under tests (TESTING=1): the app would otherwise try to connect to
     the real DATABASE_URL on startup, and the test suite provides its own
     in-memory schema via fixtures.
+
+    When AUTO_SYNC_ON_STARTUP is enabled, kick off a vault sync in the
+    background (clone + index + embed changed notes). This is for hosts with an
+    ephemeral filesystem where the clone is wiped on each restart. It runs
+    fire-and-forget so a slow or failing git/network operation never blocks or
+    crashes app startup — failures are recorded via the sync event + logs.
     """
     import os
     if os.getenv("TESTING") == "1":
         return
     init_db()
+
+    if settings.auto_sync_on_startup:
+        import asyncio
+        asyncio.create_task(_auto_sync())
+
+
+async def _auto_sync():
+    """Background vault sync on startup. Never raises into the event loop."""
+    from app.database import SessionLocal
+    from app.models import SyncEvent
+    from app.api.sync import run_sync_task
+    from app.utils.logger import log_event
+
+    db = SessionLocal()
+    try:
+        sync_event = SyncEvent(status="started")
+        db.add(sync_event)
+        db.commit()
+        db.refresh(sync_event)
+        # force=True: the ephemeral clone may be gone, so guarantee a fresh one.
+        await run_sync_task(db, sync_event.id, force=True)
+    except Exception as e:  # pragma: no cover - defensive; boot must not crash
+        try:
+            log_event(db, "startup.auto_sync_failed", {"error": str(e)})
+        except Exception:
+            pass
+    finally:
+        db.close()
 
 
 @app.get("/")

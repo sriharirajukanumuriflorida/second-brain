@@ -149,7 +149,7 @@ class HybridSearchService:
                 break
             if note.id in merged or note.id in embedded_ids:
                 continue
-            note_file = settings.vault_path / note.path
+            note_file = settings.vault_path_resolved / note.path
             try:
                 with open(note_file, "r", encoding="utf-8") as f:
                     if needle in f.read().lower():

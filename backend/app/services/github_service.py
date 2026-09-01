@@ -19,7 +19,7 @@ class GitHubService:
 
     def clone_or_fetch_repo(self, force: bool = False) -> str:
         """Clone or fetch the GitHub repository."""
-        vault_path = Path(settings.vault_path)
+        vault_path = settings.vault_path_resolved
 
         if vault_path.exists() and not force:
             # Repository exists, fetch latest
@@ -61,7 +61,7 @@ class GitHubService:
 
     def pull_latest(self) -> str:
         """Pull latest changes from main branch."""
-        vault_path = Path(settings.vault_path)
+        vault_path = settings.vault_path_resolved
         log_event(self.db, "vault.pull_started", {"path": str(vault_path)})
 
         result = subprocess.run(

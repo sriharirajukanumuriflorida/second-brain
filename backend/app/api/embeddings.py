@@ -76,9 +76,7 @@ async def generate_embeddings(
             raise HTTPException(status_code=404, detail="Note not found")
 
         # Get note content
-        from app.services.github_service import GitHubService
-        github_service = GitHubService(db)
-        vault_path = settings.vault_path
+        vault_path = settings.vault_path_resolved
         note_path = vault_path / note.path
 
         with open(note_path, 'r', encoding='utf-8') as f:
@@ -159,7 +157,7 @@ async def generate_all_embeddings(
     try:
         embedding_provider = build_embedding_provider()
         embedding_service = EmbeddingService(db, embedding_provider)
-        vault_path = settings.vault_path
+        vault_path = settings.vault_path_resolved
 
         notes = db.query(Note).order_by(Note.id).all()
 
