@@ -170,6 +170,74 @@ print("score", score, "pass", score >= 0.95, rows)
 5. Why is output diffing more important than prompt-text diffing?
 6. What gates should block a prompt release in CI?
 
+---
+
+## 9. Interview Q&A
+
+**Q: What belongs in a prompt registry entry, beyond just the prompt text?**
+A: Think about what you'd actually need if something broke in production and you had to figure out exactly what was running, reproduce it, and roll it back safely — the prompt text alone can't answer any of that.
+
+You need the exact model it was paired with (and its specific version, since even a minor model update can change behavior), the decoding settings used (like temperature — randomness settings genuinely change output, so they're part of "what was actually running"), the expected output schema (what fields, what types), any few-shot examples bundled with it (since examples teach behavior just as much as the instructions do), an owner (who do you ask when something's wrong), a changelog (what changed and why, compared to the last version), and a reference to the specific golden test set this version was validated against.
+
+The reason all of this belongs together, as one package: a prompt's actual behavior isn't determined by its text alone — it's determined by the *combination* of the text, the model, the decoding settings, and the examples, all together. If you only version the text and let the model or temperature drift independently somewhere else in your system, you lose the ability to say "this exact combination is what we tested and approved" — you could end up in a state where the prompt text is the version you tested, but it's secretly running against a different model than it was validated with.
+
+*One-liner: a registry entry needs the model version, decoding settings, output schema, examples, owner, changelog, and linked test set alongside the prompt text — because a prompt's actual behavior comes from all of these together, not the text in isolation, so they need to be versioned and reproducible as one package.*
+
+**Q: When should a prompt change be versioned as major, minor, or patch?**
+A: This mirrors how software versioning works, adapted to the fact that a prompt's output is probabilistic rather than exactly predictable — so the question becomes "how much is the *intended* behavior changing," not "did the exact wording change."
+
+A patch is for changes with no intended behavior difference at all — fixing a typo, rewording something for clarity without changing what it's asking the model to do. The expectation is that a patch shouldn't change how the system behaves on real inputs; it's cleanup, not a behavior change.
+
+A minor version bump is for changes that improve behavior while staying compatible with everything downstream — say, adding a clarifying instruction that makes the model handle an edge case slightly better, without changing the output schema or what tasks the prompt handles. Existing code that consumes this prompt's output shouldn't need to change at all.
+
+A major version bump is for anything that changes the actual contract — a different output schema (a renamed or newly required field), a different task scope (the prompt now handles cases it didn't before, or stops handling ones it used to), a changed refusal policy, or a different tool-calling contract. These are breaking changes from the point of view of anything downstream that depends on this prompt's exact behavior — similar to a breaking API change, where callers might need to update their own code to keep working correctly.
+
+*One-liner: patch = wording-only change with no intended behavior difference; minor = a compatible behavior improvement that doesn't change the schema or task scope; major = anything that changes the actual contract (schema, task scope, refusal policy, tool contract) — a breaking change for anything depending on this prompt.*
+
+**Q: Why must the prompt version and model version be pinned together?**
+A: Because a prompt's behavior was only ever validated against one specific model — its wording, its examples, even subtle assumptions about how that particular model interprets instructions were all tuned and tested against that exact model. Swap in a different model (even a newer version of the "same" model family) without updating anything else, and you're now running an untested combination — the prompt might behave completely differently against this new model's own learned behaviors, quirks, and training.
+
+Here's the real danger if you don't pin them together: if something goes wrong in production — the model starts refusing more often, or output quality drops — and you don't have a clear record of exactly which model version was paired with exactly which prompt version at that moment, you have no way to tell whether the regression came from a change to the prompt, a silent update to the model (which providers do push periodically), or some combination of both. You end up debugging blind, guessing at the cause instead of being able to directly compare "prompt v1.2 + model v2026-05 (known good)" against "prompt v1.2 + model v2026-07 (new, suspect)."
+
+Pinning them together as one recorded unit — logging both the prompt version and the exact model version on every production call — means that when something breaks, you can look at the trace and know precisely which combination produced it, and you can roll back to a prior known-good combination with confidence, rather than guessing which half of the system actually changed.
+
+*One-liner: a prompt is only validated against one specific model, so swapping the model without re-validating means running an untested combination — pinning and logging both versions together is what lets you tell, after a regression, whether the prompt or the model actually changed, instead of debugging blind.*
+
+**Q: How would you design a golden test set for a support-triage prompt?**
+A: Start from what this prompt actually needs to get right in practice, then build test cases that specifically probe those requirements — not just a handful of easy, obvious examples.
+
+First, include the common, everyday cases — the bulk of real traffic this prompt will see, covering each of the categories it's meant to classify (billing issues, technical bugs, general questions, and so on), so you know the basic, expected behavior works.
+
+Second, include edge cases — ambiguous tickets that could plausibly belong to more than one category, oddly-worded or very short tickets, tickets in a different language if that's realistic traffic, and tickets with genuinely insufficient information to classify confidently (this is exactly where the refusal path should kick in, if the contract has one).
+
+Third, include cases built directly from prior incidents — any time this prompt has actually misclassified something in production and someone had to notice and fix it, that exact case should become a permanent entry in the golden set. This is critical: without this, a bug that was already found and fixed once can silently resurface in a future prompt change, because nothing in the test set would have caught it a second time.
+
+Fourth, include adversarial cases — tickets that try to manipulate the classification, for instance a ticket containing text designed to look like an instruction to the model rather than a genuine customer complaint, testing whether the prompt's guardrails actually hold up.
+
+Each of these should have a clearly defined expected outcome (the correct label, or an explicit refusal where that's the right answer), so that running the regression harness gives an unambiguous pass or fail, not something requiring human judgment every time.
+
+*One-liner: cover common everyday cases, ambiguous/edge cases (including where refusal is the correct answer), every prior real-world misclassification turned into a permanent regression test, and adversarial cases probing the guardrails — each with a clear expected outcome so the test suite can be checked automatically, not by eye.*
+
+**Q: Why is diffing outputs more important than diffing the prompt text itself?**
+A: Diffing the text tells you what you *changed* — it shows you literally which words are different between two prompt versions. But it tells you nothing about what actually *happens* as a result of that change, and that gap matters a lot with a probabilistic system.
+
+Here's the core problem: prompts don't behave like regular code, where a given input always produces exactly the same output through a fixed, traceable set of rules you could read and verify yourself. A tiny wording change — even something that looks, to a human reading the text diff, like a harmless clarification — can shift model behavior in ways that are genuinely hard to predict just by reading the new text. The only way to actually know whether a change made things better, worse, or just different is to run both versions against the same set of real inputs and compare what they *produce* — the actual outputs, not the instructions that generated them.
+
+This is why a regression harness runs both the old and new prompt version against the same golden set and compares the resulting outputs — checking things like: did the output still validate against the schema, did a rubric score for quality stay the same or drop, did the refusal rate change, did specific known-correct answers change to something different. This output-level comparison is what actually tells you whether behavior regressed — a clean-looking wording change can still produce worse real outputs, and a messy-looking wording change can sometimes produce better ones; you can't reliably know which until you've actually measured the outputs themselves.
+
+*One-liner: a text diff only shows you what you changed in the wording, not what that change actually does to behavior — since prompts are probabilistic rather than deterministic, the only reliable way to know if a change helped or hurt is to run both versions against the same golden set and compare the actual outputs produced, not the words that produced them.*
+
+**Q: What gates should block a prompt release in CI?**
+A: Think of these as the automated checks that have to pass before a new prompt version is allowed to replace the current one in production — the same idea as tests blocking a code merge, just measuring different things.
+
+A schema failure should always block release — if the new version's output doesn't reliably validate against the required structure, nothing downstream can safely consume it, so this is a hard, non-negotiable gate. A safety regression should also always block — if the new version starts producing policy violations, unsafe content, or anything the old version correctly avoided, that's not something you ship and fix later; it blocks immediately. A failure on any of the critical, known cases in the golden set (especially ones built from prior real incidents) should block release — these specifically exist to prevent an old bug from quietly resurfacing, so a failure here is a direct signal that's happening.
+
+Beyond these hard blocks, a statistically meaningful drop in the overall quality score — not just noise from natural variation, but a real, measurable regression across the golden set as a whole — should also block release, even if no single hard rule technically failed, since an overall quality decline is still a real problem worth catching before it reaches users.
+
+The underlying principle across all of these: failing any of these gates means the change doesn't go live yet — it goes back for revision, exactly the same discipline as a failing test suite blocking a code deployment.
+
+*One-liner: block release on schema-validation failures, safety regressions, failures on critical/incident-derived golden cases, or a statistically meaningful overall quality score drop — any of these failing means the change goes back for revision instead of reaching production, the same discipline as a failing test suite blocking a code deploy.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Prompt Registry With Semantic Versions]], [[04 Code Snippets/LLM/Golden Prompt Regression Harness]]

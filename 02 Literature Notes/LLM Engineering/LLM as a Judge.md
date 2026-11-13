@@ -126,6 +126,53 @@ print(audit_position_bias(always_a, [("x","y"),("better","worse")]))
 5. State what artifacts are needed to reproduce a run.
 6. Translate a score into a shipping decision.
 
+---
+
+## 9. Interview Q&A
+
+**Q: Why is an LLM judge described as "a noisy measuring instrument, not an oracle" — what does that distinction actually change in practice?**
+A: An oracle would be a source of ground truth you could simply trust — if it says answer A is better, that's just correct, no further checking needed. A noisy measuring instrument is different: it gives you a *reading*, which is useful information, but one that has its own specific error patterns and biases baked in, the same way a bathroom scale gives you a useful but imperfect reading of your actual weight — you wouldn't treat the scale's number as infallible without ever checking it against a known reference weight.
+
+This distinction changes what you're actually obligated to do before trusting an LLM judge's output. If it were an oracle, you could just take its verdict and act on it directly. Because it's an instrument, you have an obligation to actually characterize its error patterns first — does it have a consistent bias (favoring longer answers regardless of quality, favoring whichever answer appears first), and does it actually agree with real human judgment on cases where you have genuine human labels to check against? Only once you've done this characterization work can you reasonably trust its verdicts, and even then, you trust them as "a calibrated instrument's reading," not as ground truth itself.
+
+*One-liner: an oracle's verdict can simply be trusted; a noisy instrument's reading is useful but needs its specific error patterns (bias, position sensitivity) characterized and checked against real ground truth first — treating an LLM judge as the latter means doing that calibration work before trusting its verdicts, rather than accepting them at face value.*
+
+**Q: What's the difference between pointwise and pairwise judging, and why is pairwise often more reliable for small quality differences?**
+A: Pointwise judging asks the model to assign an absolute score to a single answer in isolation — "rate this response from 1 to 10." Pairwise judging instead shows the model two answers side by side and asks it to pick which one is better (or declare a tie) — a relative, comparative judgment rather than an absolute one.
+
+Pairwise tends to be more reliable specifically for small, subtle quality differences because comparing two things side by side is a fundamentally easier judgment task than independently placing each one on an absolute numeric scale. Think about doing this yourself: it's often much easier to look at two similar essays and say "this one is slightly better" than it is to independently assign each one an exact score out of 10 and have those two scores reliably reflect the same small difference you'd notice when looking at them together. Pointwise scores are also prone to drift over time or across different batches — a judge might score the exact same quality of answer slightly differently depending on what else it happened to be scoring recently, since there's no direct anchor or comparison point for an absolute numeric judgment.
+
+The tradeoff: pairwise judging only tells you "A is better than B" — it doesn't directly give you an absolute quality score you could track over time the way a pointwise score would, and comparing many candidates pairwise can require more individual comparisons than just scoring each one once.
+
+*One-liner: pointwise assigns an absolute score to one answer in isolation; pairwise directly compares two answers and picks the better one — pairwise tends to be more reliable for small, subtle differences because relative comparison is an easier, more stable judgment than independently placing each answer on an absolute scale with no direct anchor.*
+
+**Q: What specific biases need to be audited for when using an LLM as a judge, and how do you actually test for each one?**
+A: Several documented, specific biases can distort a judge's verdicts in ways that have nothing to do with actual answer quality, and each needs its own specific test to catch.
+
+Position bias: a judge might systematically favor whichever answer happens to be presented first (or second), regardless of actual quality. Test for this by swapping the order of the same pair of answers and checking whether the judge's verdict changes purely because of the swap — if it does, that's evidence of position bias, since the actual quality of the two answers didn't change, only their presentation order did.
+
+Verbosity bias: a judge might systematically favor longer answers, treating length as a proxy for thoroughness or quality even when the extra length doesn't add real value. Test for this by comparing a genuinely correct, concise answer against a longer, padded answer that doesn't actually contain more real substance, checking whether the judge incorrectly favors the longer one on length alone.
+
+Self-preference bias: if the judge model and the model being evaluated are from the same family or provider, the judge might subtly favor outputs that match its own stylistic tendencies, independent of genuine quality. Test for this by comparing judge verdicts across answers from genuinely different model families, checking for a systematic pattern of preferring its own family's outputs. Formatting bias is similar — a judge might prefer answers formatted in a particular way (bullet points, a specific structure) regardless of whether that formatting is actually more correct or helpful for a given task.
+
+*One-liner: audit for position bias (swap answer order on the same pair and check if the verdict flips purely from the swap), verbosity bias (compare a concise correct answer against a padded longer one), self-preference bias (compare verdicts across genuinely different model families), and formatting bias — each needs its own specific test, since none of these show up just from looking at a judge's verdicts in isolation.*
+
+**Q: How do you actually calibrate an LLM judge against real human judgment, and what specifically are you checking for?**
+A: This follows the same calibration principle covered in Eval Fundamentals, applied specifically to a judge model rather than to a metric generally: get genuine human judgments on a sample of real cases, run the judge on those same cases, and compare where they agree versus where they diverge.
+
+What you're specifically checking for with an LLM judge, beyond simple agreement rate: confusion patterns — are there particular *types* of cases where the judge and humans systematically disagree (perhaps the judge handles clear-cut quality differences well but struggles specifically on close, ambiguous calls where even humans might disagree with each other)? And statistical measures of agreement that account for chance — a raw percentage agreement can be misleading if, say, 90% of cases have an obvious right answer that both humans and the judge would agree on easily; a measure like Cohen's kappa specifically accounts for how much agreement would be expected purely by chance, giving a more honest picture of how much the judge is actually adding real signal versus just agreeing on the easy cases that barely needed a judge at all.
+
+This calibration should specifically be re-checked over time, not treated as a one-time setup step — a judge's behavior, especially if it's a model that gets provider-side updates you don't control, can shift, which means a calibration that held true months ago might not still hold true now without re-verification.
+
+*One-liner: calibration means comparing the judge's verdicts against real human judgments on the same sample of cases, specifically checking for confusion patterns (what types of cases does it get systematically wrong) and using chance-adjusted agreement measures like Cohen's kappa (rather than raw agreement, which can look falsely strong just from easy, obvious cases) — and re-checking this periodically, since a judge's behavior can shift over time, especially if it's a model you don't fully control the updates to.*
+
+**Q: What judge-specific artifacts need to be saved, beyond the general eval artifacts covered in Eval Fundamentals?**
+A: Beyond the standard eval artifacts (dataset version, system config, per-case outputs, scores), a judge-based eval specifically needs: the exact rubric version used (what specific criteria and anchors the judge was instructed to apply — since changing the rubric wording can shift verdicts just as much as changing which model is doing the judging), the randomized presentation order used for each pairwise comparison (so you can later check whether a specific verdict might have been affected by position bias), the judge's actual rationale/reasoning for its verdict (not just the final score or choice — the reasoning is what lets you spot, after the fact, whether the judge's stated reasoning actually matches its verdict, or whether something inconsistent happened), and the specific judge model version used (since, as above, a judge model can itself change behavior over time through provider-side updates, independent of anything you changed).
+
+The reason this extra detail matters specifically for judges: a judge's verdict is itself a kind of output that can be wrong or inconsistent, which means you need enough detail to audit the *judge's own behavior*, not just the thing it was judging — if a judge's verdict looks suspicious later, you want to be able to check whether the rubric was ambiguous, whether position bias might have played a role, whether the judge's own stated reasoning actually supports the verdict it gave, and whether the judge model itself has changed since this run.
+
+*One-liner: beyond standard eval artifacts, judge-based evals need the exact rubric version, the randomized presentation order per comparison, the judge's actual rationale (not just its final verdict), and the specific judge model version — since a judge's own verdict can itself be wrong or inconsistent, and auditing that requires enough detail to check the judge's behavior specifically, not just the thing it judged.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Pairwise Judge Calibration Harness]], [[04 Code Snippets/LLM/Judge Position Bias Audit]]

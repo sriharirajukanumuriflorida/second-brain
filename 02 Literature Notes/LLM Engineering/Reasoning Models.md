@@ -147,6 +147,57 @@ for q in ["What is the capital of France?", "Prove sqrt(2) is irrational"]:
 4. When does spending more test-time compute NOT help?
 5. Design a difficulty-routing policy; what do you measure to tune the threshold?
 
+---
+
+## 9. Interview Q&A
+
+**Q: Why does chain-of-thought help with multi-step tasks?**
+A: Think about what a model actually has to work with: whatever it's already written down. Normally, a model has to produce the final answer in one single step, using only its internal, hidden processing to get there — and for anything that takes several logical steps (a multi-step math problem, planning out code), that's asking a lot to happen invisibly, all at once, with no way to check intermediate work.
+
+Chain-of-thought changes this by having the model write out its intermediate steps as actual text, one at a time, before giving the final answer. Here's why that helps: once step 1 is written down as real tokens, step 2 gets to "see" it as part of the input — the model can refer back to it just like it would refer to anything else in the prompt. This means the model doesn't have to hold the whole multi-step problem in its head at once; it can offload partial progress into the visible text and build on it piece by piece, the same way a person solving a math problem writes down intermediate steps instead of trying to do it all in their head.
+
+This especially helps because each step is an easier sub-problem than the whole thing. "What's 47 times 23" is hard to do in one leap, but "break it into 47×20 plus 47×3, then add them" turns one hard step into several easy ones — and writing each easy step down lets the next step build on a correct, visible intermediate result instead of guessing the whole answer at once.
+
+*One-liner: writing out intermediate steps lets each step build on the actual visible result of the step before it, turning one hard all-at-once answer into several easier steps the model can check and build on — much like a person writing down their work instead of doing it all in their head.*
+
+**Q: How does self-consistency turn compute into accuracy, and why does it need temperature>0?**
+A: Start with the idea behind it: if you ask the same hard question several different ways and most of the answers agree, that agreement is itself evidence the answer is probably right — even if any single attempt could have gone wrong along the way.
+
+Self-consistency applies exactly that idea to a single model. Instead of generating just one chain-of-thought and trusting it, you generate several *different* chains for the same question, and then take whichever final answer shows up most often across them — a majority vote. The reasoning behind this: a wrong answer usually comes from some mistake somewhere in a specific chain of reasoning, and different sampled chains are likely to make *different* mistakes (if they make any at all). But if most of the independent chains happen to land on the same final answer anyway, despite following different paths, that's a strong sign the answer is actually correct rather than a coincidence of one lucky guess.
+
+Here's why it needs temperature greater than 0: at temperature=0, the model is being as deterministic as possible — it always picks its single most likely next word at every step. That means every "sample" you generate at temperature=0 would just produce the exact same chain and the exact same answer every time, since there's no randomness to produce a different path. You'd be doing extra work for zero extra information — all N votes would just be duplicates of the same one attempt. You need some randomness (temperature>0) so the model can actually explore genuinely different reasoning paths across samples — that diversity is the entire point, since agreement across different paths is what gives you the confidence signal in the first place.
+
+*One-liner: self-consistency samples several different reasoning chains and takes whichever final answer wins the majority vote, on the idea that agreement across independently-wrong-in-different-ways attempts is evidence of correctness — but this only works with temperature above 0, since at temperature=0 every "sample" would just be an identical copy of the same one chain.*
+
+**Q: What's the difference between prompted reasoning and a trained reasoning model?**
+A: The difference is whether the "thinking" behavior was added through instructions at the time you use the model, or built into the model itself during training.
+
+Prompted reasoning (like chain-of-thought) works on basically any existing model — you just ask it, in the prompt, to "think step by step" or show its work. The model was never specifically trained to reason this way; it's simply following an instruction, using reasoning-like patterns it happened to pick up from its training data. This is cheap to try (it's just a prompt change) and works today on almost any model, but the quality of the reasoning is only as good as what the model can produce when merely asked nicely.
+
+A trained reasoning model (like OpenAI's o1/o3 or DeepSeek-R1) is different: these models go through an extra training stage specifically designed to make them good at reasoning. They're trained using reinforcement learning, where the model is rewarded based on whether it actually arrived at the correct final answer — and through that training, the model learns, on its own, to produce long internal reasoning traces, check its own work, and backtrack when something looks wrong, without being told to do any of that through a prompt. This "thinking" is baked into the model's learned behavior, often happens automatically without being asked, and is frequently hidden from the user entirely (you just see the final answer). These models tend to be noticeably stronger on genuinely hard problems, but they're also slower and more expensive to run, since all that extra internal reasoning is still compute you're paying for.
+
+*One-liner: prompted reasoning (CoT) is just asking an existing model to show its steps, which is cheap and works everywhere but only as good as what a model will produce when asked — a trained reasoning model has reasoning built in through dedicated training, producing stronger (but slower, pricier) results, often with hidden internal reasoning you never directly see.*
+
+**Q: When does spending more test-time compute NOT help?**
+A: The short answer: when the task was never actually hard in the first place.
+
+All of these techniques — longer chains of thought, sampling many attempts and voting, searching over different reasoning branches — exist to help with problems that genuinely benefit from extra steps, extra attempts, or extra exploration. A genuinely hard multi-step math problem benefits from this, because there's real room for a longer, more careful process to catch mistakes a quick, one-shot answer would make.
+
+But an easy question — "what's the capital of France," or a simple factual lookup — doesn't have multiple steps to get right or wrong. The model either already knows the answer directly or it doesn't, and no amount of "thinking longer" creates information that wasn't already there. In these cases, extra reasoning steps add cost and latency for literally zero accuracy benefit — and in some cases can even make things slightly worse, since a longer, more elaborate response gives more opportunities for the model to second-guess a correct, simple answer into something more complicated and wrong.
+
+This is exactly why matching the amount of reasoning to the actual difficulty of the task matters: spend the extra compute only on the subset of questions that are genuinely hard enough to benefit from it, and let easy questions go through cheaply and quickly.
+
+*One-liner: extra test-time compute only helps when a task genuinely has room for multi-step improvement — easy, single-fact questions get no benefit (and sometimes get worse) from extra "thinking," so reasoning effort should be matched to actual task difficulty, not applied uniformly to everything.*
+
+**Q: Design a difficulty-routing policy — what would you measure to tune the threshold?**
+A: Think of this as a cost-control system: you want expensive, slow reasoning only for the questions that actually need it, and a cheap, fast path for everything else.
+
+The basic design: first, estimate how hard a given query is — this could be something simple like checking for keywords that tend to signal a hard, multi-step task ("prove," "why," "plan"), or something more sophisticated like a small classifier trained on examples of easy vs. hard queries. Based on that difficulty estimate, route the query down one of two paths: below some threshold, send it to the cheap, one-shot, low-latency path; above the threshold, send it to the expensive reasoning path (chain-of-thought, self-consistency, or a trained reasoning model).
+
+The hard part is picking where to set that threshold, and that's where measurement comes in. You'd want to track, for queries near the threshold on both sides: accuracy (did routing this query to the cheap path or the expensive path actually get the right answer), cost (how many tokens or how much compute did each path use), and latency (how long did the user wait). The goal is to find the threshold that avoids two failure modes: setting it too low, so you're paying reasoning-level cost and latency on easy queries that didn't need it, or setting it too high, so you're sending genuinely hard queries down the cheap path and getting wrong answers. In practice, this means running both paths on a labeled set of queries with known correct answers, measuring where the cheap path starts failing, and setting the threshold just above that point — then re-checking it periodically, since what counts as "easy" can shift as your actual traffic changes.
+
+*One-liner: estimate each query's difficulty (keywords, or a trained classifier), route below-threshold queries to a cheap one-shot path and above-threshold queries to expensive reasoning, and tune the threshold by measuring accuracy, cost, and latency on both paths against a labeled test set — catching the point where the cheap path starts failing.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Self-Consistency Majority Vote]], [[04 Code Snippets/LLM/Match Test-Time Compute to Difficulty]]

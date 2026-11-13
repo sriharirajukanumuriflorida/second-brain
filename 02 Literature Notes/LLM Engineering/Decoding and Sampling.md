@@ -155,6 +155,63 @@ for T in (0.25, 0.5, 1.0, 2.0):
 4. What decoding settings would you use for JSON tool output, and why?
 5. Is temperature=0 fully deterministic? What can still vary?
 
+---
+
+## 9. Interview Q&A
+
+**Q: Write the temperature-softmax formula and explain what happens as T→0 and T→∞.**
+A: Plain softmax is `p_i = exp(z_i) / Σ exp(z_j)`. Temperature just divides each logit by `T` first: `p_i = exp(z_i/T) / Σ exp(z_j/T)`.
+
+Here's the simple way to see what that does. Softmax cares about the *gaps* between logits, not their raw size. Dividing every logit by `T` also divides the gaps between them by `T`. Shrink the gaps and the distribution gets flatter. Widen the gaps and it gets sharper.
+
+So as `T → 0`, you're dividing by something close to zero, which blows the gaps up toward infinity. The biggest logit ends up miles ahead of the rest, so softmax dumps nearly all its probability on just that one token. That's greedy decoding — always pick the top token.
+
+As `T → ∞`, you're dividing by something huge, so all the gaps shrink toward zero. Every token ends up looking about equally likely, so you're basically sampling at random, ignoring what the model actually prefers.
+
+`T=1` is the middle ground — the model's raw, untouched distribution. Below 1 sharpens it (more confident, more repetitive). Above 1 flattens it (more random, more surprising).
+
+*One-liner: temperature stretches or squashes the gaps between logits — near 0 it collapses to "always pick the top token," near infinity it collapses to "pick randomly," and 1 is the model's natural distribution.*
+
+**Q: Contrast top-k and top-p — why does nucleus (top-p) sampling adapt better?**
+A: Both exist for the same reason: if you sample from the raw distribution, every so often you'll draw some bizarre, low-probability token, and one bad token can derail the rest of the sentence. So both top-k and top-p cut off the unlikely tail before sampling — keep only the "plausible" tokens, then sample from those.
+
+Top-k keeps a fixed number of tokens — say, the top 40 — no matter what. The problem: how many tokens are actually plausible changes a lot depending on the sentence. After "The capital of France is", the model is almost certain it's "Paris" — really only one good answer. But top-k=40 still forces 39 near-impossible tokens into the pool, giving them a small but real chance of getting picked. Now take "My favorite color is" — dozens of colors are all reasonable. A small top-k might cut off perfectly good options here.
+
+Top-p fixes this by picking tokens based on *cumulative probability* instead of a fixed count. Sort tokens by probability, and keep adding them until you've covered, say, 90% of the total probability mass. When the model is very sure (one token dominates), that 90% might be reached with just one or two tokens — the pool shrinks automatically. When the model is unsure (probability spread across many tokens), it takes more tokens to reach 90% — the pool grows automatically. Same setting, both situations handled correctly.
+
+*One-liner: top-k always keeps the same number of candidates, which is wrong whenever the model's confidence changes — top-p keeps however many tokens are needed to cover a target probability, so it naturally shrinks when the model is sure and grows when it's unsure.*
+
+**Q: When is beam search appropriate, and when is it actively harmful?**
+A: It depends on whether there's one "correct" answer to aim for, or many equally good ones.
+
+Beam search doesn't commit to one word at a time like greedy decoding does. Instead it tracks several candidate sentences at once (say, the top 5) and at the end picks whichever full sentence had the highest overall probability. This lets it recover from an early word choice that looked good in the moment but led somewhere worse.
+
+For translation or summarization, there's usually a "right" target to land on — translating a sentence into French has a correct answer, more or less. Beam search's habit of hunting for the single most likely full sentence is exactly what you want there.
+
+For open chat or creative writing, there's no single right continuation — many different replies are all equally good. But beam search still tries to find the single "most likely" sentence, and that sentence tends to be the blandest, safest, most predictable one — because any interesting or unusual word choice drags the probability down a bit, and beam search punishes that. The result is repetitive, generic-sounding text. This is a well-known failure mode called beam search degeneration.
+
+*One-liner: beam search hunts for the one most probable full sentence — great when there's a real target answer (translation), bad for open-ended chat or creative writing, where it just produces bland, repetitive text.*
+
+**Q: What decoding settings would you use for an agent's JSON tool-call output, and why exactly?**
+A: Think about what happens when the output is wrong. A tool call gets parsed by code — a JSON parser, a validator. There's no "close enough." Either it parses correctly or it breaks. Unlike a chat reply, there's no benefit to a slightly different word choice here — a different-but-still-valid JSON payload isn't something you ever want 10% of the time.
+
+That means any randomness is pure risk with zero upside. If temperature is above 0, there's always some small chance the model picks a token that breaks the schema — wrong punctuation, wrong type, a made-up field — purely by chance, not because the model didn't know better. At temperature=0, the model just picks the token it's already most confident in, which is almost always the correct one if it's been prompted properly.
+
+So: temperature=0 (greedy). Top-k and top-p don't even apply here, since they only matter when you're sampling with some randomness — at greedy decoding there's only one candidate token at each step anyway. For extra safety, you can pair this with constrained decoding, which blocks any token that would break the JSON grammar at the source — temperature=0 makes bad output unlikely, constrained decoding makes it impossible.
+
+*One-liner: for tool-call JSON, randomness only hurts and never helps, so use temperature=0 — it reliably picks the correct token, and top-k/top-p have nothing left to do.*
+
+**Q: Is temperature=0 fully deterministic? What can still cause different outputs across runs?**
+A: Close, but not guaranteed bit-for-bit — and the reason why says something real about how these models run in production.
+
+In theory, temperature=0 just means "always pick the highest-probability token." Same input, same logits, same pick, every time. No randomness in the decision itself.
+
+But in practice, a few things can quietly change the logits by a tiny amount before you even get to that decision. GPU math isn't perfectly consistent — adding the same numbers in a different order can give a microscopically different result due to rounding. And production servers usually batch multiple users' requests together for efficiency; which requests get batched together changes from call to call, which can shift that rounding slightly too. Some serving optimizations add their own small sources of noise as well.
+
+Normally this tiny noise doesn't matter. But every so often, two tokens are almost exactly tied in probability, and that tiny noise is enough to flip which one is technically higher. Since the model always just picks the top one with no tolerance for "basically equal," that flip changes the output — and once one token changes, everything generated after it can end up different too.
+
+*One-liner: temperature=0 removes randomness from the decision ("always pick the top token"), but not from the math that produces the logits — tiny floating-point and batching differences can occasionally flip a near-tied top token, causing rare differences even at "deterministic" settings.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Temperature Top-k Top-p Sampler]], [[04 Code Snippets/LLM/Temperature Reshapes the Distribution]]

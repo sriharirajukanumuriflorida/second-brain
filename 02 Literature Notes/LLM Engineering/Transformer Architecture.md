@@ -159,6 +159,66 @@ for name, (L, d, v) in {"GPT-2 small":(12,768,50257),
 4. Roughly how many params in a 12-layer, d=768 model, and where do most live?
 5. What do scaling laws say about a 13B model trained on 300B tokens?
 
+---
+
+## 9. Interview Q&A
+
+**Q: Draw/describe a pre-norm decoder block with both residual connections — and explain why each piece is there.**
+A: Start with what a block needs to do: let tokens share information with each other (attention's job), and let each token process what it just received on its own (the MLP's job). It has to do both without losing information gathered by earlier blocks. That's why the block adds new information onto a running stream instead of replacing it.
+
+The block is: `x = x + MHA(LayerNorm(x))`, then `x = x + MLP(LayerNorm(x))`. Here's what that means in plain terms. First, `x` gets normalized — scaled to a consistent range — but only as a *copy* used just for this step's math. The real running stream isn't touched by this. Attention runs on that normalized copy and mixes information across words. Then the important part: the attention result gets *added* onto the original, untouched `x` — not used to replace it. The same pattern happens again for the MLP: normalize a copy, compute something, add it back onto the stream that still has everything from before.
+
+Why does it have to be addition and not replacement? Because addition lets a block skip doing anything if it has nothing useful to add — it can just output something close to zero, and the information already in the stream passes through unchanged. If blocks replaced the stream instead, every single block would have to actively remember and re-output everything from before just to avoid losing it, which is a much harder thing for the network to learn. Early deep networks that didn't use this trick genuinely failed to train once they got too deep, for exactly this reason.
+
+*One-liner: `x = x + MHA(LN(x))` then `x = x + MLP(LN(x))` — normalize a copy just for the block's own math, but always add the result onto the untouched running stream, so information keeps flowing through unless a block actively changes it.*
+
+**Q: Why does the residual stream specifically help both training *and* interpretability — aren't those different concerns?**
+A: They look different, but both come down to the same thing: a clean, traceable path for information to travel through the network.
+
+For training: when the network learns, it needs to send a correction signal (the gradient) backward through every layer. In a plain stack of layers with no shortcuts, that signal gets multiplied by each layer's own derivative as it travels back. If those derivatives are usually a bit less than 1 — which happens often — the signal shrinks more and more with each layer, and by the time it reaches an early layer in a deep network, it's basically zero. That's called vanishing gradients, and it's exactly what made very deep networks hard to train before residual connections existed. The fix: `x = x + f(x)` always has a "+1" built into its derivative, no matter what `f` does. That guarantees there's always at least some path for the signal to travel back along, no matter how deep the network is.
+
+For interpretability: because every block only ever *adds* to the stream, the stream at any point is just the sum of the starting embedding plus whatever every block before it added. That means you can actually split the final result apart and see how much each individual block contributed — which is the whole basis of techniques researchers use to peek inside these models (like checking what the model "believes" partway through, before it even reaches the final layer). None of that would be possible if blocks overwrote the stream instead of adding to it — you'd have no way to separate out any one block's contribution afterward.
+
+*One-liner: the residual stream only adds, never replaces — that guarantees a backward path for training signal no matter how deep the network is, and it also means you can split the final output apart to see exactly how much each block contributed, which is how researchers look inside these models.*
+
+**Q: What does attention do that the MLP doesn't, and vice versa — and why split the work this way at all?**
+A: The split exists because "sharing information between words" and "processing one word's own information" are two genuinely different jobs, and no single mechanism does both well.
+
+Attention's entire job is about relationships between different words — it can't even function with just one word, since its whole point is comparing words against each other. For a given word, attention's output is a mix of *other* words' information. This is the only part of the whole block where information actually moves from one word's position to another's. Without attention, the model would process each word completely alone and could never figure out, say, what "it" refers to earlier in a sentence.
+
+The MLP works completely differently — it looks at each word's vector on its own, with no awareness of any other word. Its job is to transform that one word's (already context-enriched, post-attention) information through a learned function. Because this layer is wide (usually 4 times the normal width) and uses the same weights for every word, it has a lot of room to act like a big lookup table. This is part of why researchers increasingly think the MLP is where much of a model's factual knowledge actually lives, while attention is more like the part that decides which facts, from which words, are relevant right now.
+
+Splitting the work this way is what makes transformers efficient: attention does the genuinely hard part — comparing words against each other, which is also the expensive part — while the MLP does simple, per-word processing that can run on every word at once with no dependency between them.
+
+*One-liner: attention is the only place information moves between words (and it's the expensive part); the MLP processes each word's information on its own afterward (and likely holds most of the model's factual knowledge) — splitting them lets each one focus on what it's actually good at.*
+
+**Q: Roughly how many parameters are in a 12-layer, d_model=768 model, and where do most of them live?**
+A: Work this out from what actually holds the weights, rather than just recalling a number. Attention has four weight matrices, each of size `d_model × d_model`: one each for Query, Key, Value, and the output projection. So attention uses about `4 × d_model²` parameters per layer. The MLP has one layer that expands the width (usually 4 times wider) and one that shrinks it back down — so the MLP uses about `8 × d_model²` parameters per layer. Already, just from these shapes, the MLP has twice as many parameters as attention in every layer. That's not something you'd only notice by testing it — it falls directly out of the 4x-width design choice.
+
+Add those up: `4d² + 8d² = 12d²` per layer. With `d_model = 768`, that's `12 × 768² ≈ 7.08 million` parameters per layer. Across 12 layers, that's about 85 million. Add the embedding table, which is `vocabulary size × d_model` — with a ~50,000-word vocabulary, that's about 38 million more (often counted once, since the same table is reused at the output). All together, that's roughly 110-120 million parameters — which matches GPT-2 small, a well-known reference point at this size.
+
+The "where do most parameters live" part just falls out of the math above: the MLP always has twice as many parameters as attention, in every layer, by design. This trips people up because attention feels like the more important, more interesting mechanism — but it's actually the simpler per-word MLP that holds most of the weights.
+
+*One-liner: with the usual 4x-wider MLP, each layer has `4·d_model²` parameters in attention and `8·d_model²` in the MLP — meaning the MLP always holds twice as many — giving around 110-120 million total parameters for a 12-layer, d=768 model (GPT-2-small size).*
+
+**Q: A client trained a 13B-parameter model on 300B tokens and it's underperforming a 7B model trained on 2T tokens — what do scaling laws say happened, and what's the fix?**
+A: This is exactly the kind of situation scaling-law research (often called Chinchilla scaling) was built to explain. The core finding: a model's final quality depends on *both* how many parameters it has and how much data it was trained on — and for any given amount of compute, there's a best balance between the two. Spend too much of your budget on parameters and not enough on data, and the model ends up with more capacity than it's actually learned to use well. It's not broken — it's just undertrained relative to how big it is.
+
+As a rough rule of thumb, well-balanced training uses around 20 tokens of data for every parameter. The 13B model, at 300B tokens, got about 23 tokens per parameter — close to that rule in isolation. But the real comparison is against the 7B model, which was trained on 2T tokens — about 286 tokens per parameter, far more data relative to its size. Scaling laws say that once you're near or past the balanced ratio, adding more data keeps helping more reliably than adding more parameters does. That's exactly why a smaller model trained on a lot more data can beat a bigger model that wasn't trained on enough — the smaller model actually got to fully use what it has, while the bigger one didn't.
+
+So the fix for the client is almost never "build an even bigger model." It's "get more or better training data, and train at a size that matches the data you actually have" — or keep training the existing model further if more data becomes available. The problem isn't that the model is too small — it's that it was never shown enough examples to justify its size.
+
+*One-liner: a model's quality depends on both its size and how much data it saw, and there's a balanced ratio between the two (roughly 20 tokens per parameter) — the 13B model was undertrained for its size, while the 7B model saw enough data to make good use of its smaller size, so the fix is more data, not a bigger model.*
+
+**Q: Why do all modern LLMs use pre-norm instead of the original Transformer paper's post-norm — what specifically breaks with post-norm at depth?**
+A: The difference is just where the normalization step sits relative to the addition step — but that small placement choice has a big effect on whether training actually works at depth. Post-norm does the addition first, then normalizes the result: `x = LayerNorm(x + sublayer(x))`. That means what gets passed to the next block has always just been normalized — the original, untouched stream doesn't survive even one block.
+
+Here's why that matters: normalization isn't a "free" operation for gradients — it rescales its input, and that rescaling effect carries through to the backward pass too. In post-norm, every single block reintroduces this rescaling right at the exact point where the shortcut connection was supposed to give a clean, untouched path for the training signal. Stack enough blocks, and that signal has now passed through many rounds of rescaling on its way back — which in practice makes very deep post-norm networks unstable or hard to train without extra tricks like careful warmup.
+
+Pre-norm instead does `x = x + sublayer(LayerNorm(x))` — normalization only touches a copy used for the sublayer's own computation, and the actual addition back onto the stream uses the original, untouched `x`. That means the shortcut path is never touched by normalization at all, no matter how many blocks you stack — so the clean backward path argument holds up at any depth, which is exactly why pre-norm scales comfortably to the 30, 50, even 100+ layer depths modern LLMs use. The one downside is that without anything ever rescaling the main stream itself, its values can slowly grow larger at extreme depths — which is a much smaller problem than post-norm's instability, and is part of why models add one final normalization step right before producing output.
+
+*One-liner: post-norm normalizes right after the addition, so every block disturbs the one path meant to carry a clean training signal — pre-norm only normalizes a copy used for the block's own math, leaving that path untouched, which is why pre-norm trains reliably at the depths modern LLMs actually use.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/A Transformer Block Forward Pass]], [[04 Code Snippets/LLM/Counting Transformer Parameters]]

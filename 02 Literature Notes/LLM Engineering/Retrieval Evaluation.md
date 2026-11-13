@@ -135,6 +135,59 @@ print(evaluate(cases, toy, 3))
 4. When is NDCG better than binary recall?
 5. How do context precision and context recall connect retrieval to generation?
 
+---
+
+## 9. Interview Q&A
+
+**Q: Define hit rate@k, precision@k, and recall@k.**
+A: All three look at the same raw ingredient — the top-k retrieved results for a query, compared against which results were actually labeled relevant ahead of time — but each one asks a genuinely different question about that comparison.
+
+Hit rate@k asks the simplest, most binary question: did *any* relevant result show up at all, anywhere in the top-k? It's a yes/no per query — either at least one relevant item made it into the top-k, or none did. It doesn't care how many relevant items there were in total, or how high up the relevant one ranked — just whether retrieval found at least something useful.
+
+Precision@k asks: out of the k results you actually returned, what fraction were genuinely relevant? If you retrieved 5 results and 3 were actually relevant, precision@5 is 3/5 = 0.6. This measures how much of what you handed over was actually useful, versus noise — a low precision means you're burying good results among a lot of irrelevant ones.
+
+Recall@k asks the opposite direction: out of *all* the relevant documents that exist for this query (however many that is), what fraction did you actually manage to retrieve within your top-k? If there were 4 truly relevant documents total, and your top-k only contained 2 of them, recall@k is 2/4 = 0.5. This measures how complete your retrieval was — a low recall means genuinely relevant evidence exists but your search missed it entirely.
+
+*One-liner: hit rate@k is binary — did any relevant result appear at all; precision@k is "of what you retrieved, how much was actually relevant" (noise control); recall@k is "of everything that's actually relevant, how much did you find" (completeness) — three different questions about the same top-k results.*
+
+**Q: Why is recall@k often treated as the first, most important RAG retrieval metric to check?**
+A: Think about what happens downstream if recall is low: the generator — the part of the system that actually writes the final answer — can only ever work with whatever evidence made it into its context window. If the one document that actually contains the correct answer never even made it into the top-k retrieved results, there is absolutely nothing the generator can do to produce a correct, grounded answer — no amount of clever prompting, no better model, no smarter generation strategy can conjure up evidence the retrieval step never surfaced in the first place.
+
+This is why recall gets checked first, before precision or ranking-quality metrics: it's asking the most fundamental possible question — did the right information even make it into the candidate pool at all? If recall is low, you already know the problem is upstream, in retrieval itself (chunking, embedding, search strategy), and no amount of fixing the generation side of things will help, because the generator was never given a fair chance to answer correctly in the first place.
+
+Precision and ranking metrics (like MRR) matter too, but they're answering a different, somewhat secondary question — *given* that the right evidence was found somewhere in your results, how cleanly and how prominently was it actually presented? That's a real and important question, but it's moot if the answer to the more basic question — was it found at all — is no.
+
+*One-liner: recall@k matters first because a generator can only ever work with evidence that actually made it into its context — if the correct document never appeared in the top-k results at all, no amount of better prompting or generation can fix that, so low recall points to an upstream retrieval problem that generation-side fixes simply can't address.*
+
+**Q: What does MRR (Mean Reciprocal Rank) specifically reward?**
+A: MRR specifically rewards getting the *first* relevant result to appear as early (as close to rank 1) as possible — it's measuring ranking quality at the very top, not overall completeness.
+
+For a single query, "reciprocal rank" is just `1 / (the rank position of the first relevant result)`. If the first relevant result appears at rank 1 (the very top), that's `1/1 = 1.0` — a perfect score for this query. If the first relevant result only shows up at rank 4, that's `1/4 = 0.25` — a much lower score, even if that same relevant result eventually did appear somewhere in your top-k. Averaging this value across all your test queries gives you the overall MRR.
+
+Notice what this metric does and doesn't care about: it only cares about *where the first relevant hit shows up* — it completely ignores whether there were other relevant results further down the list, and it ignores how many total relevant documents exist for that query. This makes MRR specifically useful for diagnosing *ranking quality at the top* — if recall@k shows the right documents are generally being found somewhere within your top-k, but MRR is still low, that's telling you the relevant results are showing up, just not early enough — which points specifically toward a reranking problem (the initial retrieval found the right things, but didn't sort them well), rather than a retrieval-recall problem (finding the right things in the first place).
+
+*One-liner: MRR rewards how early the first relevant result appears, averaged across queries — it ignores everything about how many relevant results exist total or where lower-ranked relevant results sit, which makes it specifically useful for diagnosing ranking/reranking quality, separate from whether the right documents were found at all (recall's job).*
+
+**Q: When is NDCG a better metric to use than plain binary recall?**
+A: Plain recall treats relevance as strictly binary — a document is either relevant or it isn't, with no concept of "somewhat relevant" or "extremely relevant." For many real retrieval scenarios, this is too coarse: some retrieved documents are only tangentially related to the query, while others are a perfect, ideal match — and treating both the same way (just "relevant: yes") loses real, useful information about the quality of the match.
+
+NDCG (Normalized Discounted Cumulative Gain) is designed specifically for situations with *graded* relevance judgments — where your labels aren't just "relevant" or "not relevant," but something like a 0-3 scale (0 = irrelevant, 1 = somewhat relevant, 2 = relevant, 3 = highly relevant, for example). NDCG rewards not just finding relevant documents, but finding the *most highly* relevant documents, and specifically rewards them more when they appear *near the top* of the ranking rather than further down — a highly-relevant document at rank 1 contributes much more to the score than the same highly-relevant document buried at rank 10, and a moderately-relevant document is worth less than a highly-relevant one even at the same rank position.
+
+So the deciding factor for reaching for NDCG instead of plain recall: do you actually have graded relevance judgments to work with (varying degrees of "how relevant" rather than a flat yes/no), and do you care about rewarding the *best* matches specifically appearing *near the top* of the ranking, not just whether a merely-adequate match showed up somewhere in the top-k at all? If your judgments really are just binary and you only care about presence-within-top-k, plain recall or hit rate is simpler and sufficient — NDCG earns its added complexity specifically when relevance quality and precise ranking position both genuinely matter.
+
+*One-liner: use NDCG when you have graded relevance judgments (varying degrees of "how relevant," not just yes/no) and you specifically care about rewarding the most relevant results appearing near the top of the ranking — plain recall treats all relevant results as equally good regardless of degree or position, which is simpler but loses that extra signal.*
+
+**Q: How do context precision and context recall connect retrieval metrics to generation quality?**
+A: These RAGAS-style metrics sit at the junction between "did the retriever find the right raw documents" (classic IR metrics like recall@k) and "did the final generated answer actually use evidence well" (generation-side faithfulness metrics) — they evaluate the *assembled context* specifically, which is the actual bridge between those two stages.
+
+Context recall asks: of all the specific facts actually needed to correctly answer this question, how many of them are present somewhere in the assembled context the generator was actually given? This is subtly different from classic document-level recall@k — it's not just asking "was the right document found," it's asking "did the final, assembled context (after chunking, filtering, and packing into the prompt) actually retain the specific facts needed," which can diverge from document-level recall if, say, the right document was found but got truncated or its key fact got cut off during assembly.
+
+Context precision asks: of everything that's actually in the assembled context, how much of it was genuinely useful and relevant to answering the question, versus padding that took up space without contributing anything? This connects directly to generation quality because irrelevant context doesn't just sit there harmlessly — it can dilute the model's attention (as covered in "lost in the middle," under Context Engineering) and actively make a correct answer less likely, not just waste token budget.
+
+Together, these two metrics sit specifically between pure IR metrics (which only look at raw retrieved documents, before any assembly or filtering) and pure generation-faithfulness metrics (which only look at the final answer text) — they're evaluating the actual intermediate artifact, the assembled context, which is exactly what determines whether the generator even has a fair chance at producing a correct, well-grounded answer.
+
+*One-liner: context recall checks whether the specific facts needed to answer the question actually survived into the final assembled context (not just whether the right document was found); context precision checks how much of that assembled context was actually useful versus diluting padding — together they evaluate the intermediate artifact (the assembled context) that sits between raw retrieval and the final generated answer, bridging IR metrics and generation faithfulness.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Retrieval Metrics From Judgments]], [[04 Code Snippets/LLM/Labeled Retrieval Eval Harness]]

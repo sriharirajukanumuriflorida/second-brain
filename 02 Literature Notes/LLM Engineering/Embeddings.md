@@ -139,6 +139,68 @@ vecs = model.encode(["hello world", "greetings earth"], normalize_embeddings=Tru
 5. What is a Matryoshka embedding and what dial does it give you?
 6. Estimate the index size for 2M chunks at 1536 dims (float32).
 
+---
+
+## 9. Interview Q&A
+
+**Q: Explain, geometrically, what a cosine similarity of 0.9 vs 0.1 means.**
+A: Cosine similarity measures the *angle* between two vectors, not their size — it's answering "do these two things point in roughly the same direction in this meaning-space," completely ignoring how long either vector happens to be.
+
+A cosine similarity of 0.9 means the angle between the two vectors is small — they're pointing in almost the same direction. In practical terms, this means the two pieces of text are about very similar things — "how do I reset my password" and "password recovery steps" would likely land somewhere around here, since they're really asking about the same underlying topic even though the wording is different.
+
+A cosine similarity of 0.1 means the angle between the vectors is close to 90 degrees — the two vectors are nearly perpendicular, which in this geometric sense means "basically unrelated." Not opposite, just unconnected — like the difference between a question about password resets and a question about shipping policies. They don't point in opposing directions (that would be closer to -1), they just don't point toward each other at all.
+
+The key habit here is remembering cosine similarity is purely about direction/angle, never about magnitude. Two vectors pointing the exact same way but one being much "longer" than the other would still get a cosine similarity of 1 — length is deliberately ignored, because length isn't part of what makes two meanings similar.
+
+*One-liner: cosine similarity measures the angle between two vectors — near 1 means they point in nearly the same direction (very similar meaning), near 0 means they're roughly perpendicular (unrelated), and it deliberately ignores vector length entirely.*
+
+**Q: Why does L2-normalizing let you replace cosine similarity with a plain dot product? Show the math.**
+A: Start with the actual formula for cosine similarity: it's the dot product of two vectors, divided by the product of their two lengths (magnitudes). That division by the lengths is specifically there to cancel out the effect of vector size, so that only the angle matters, not how "long" either vector is.
+
+Now here's the trick: if you take every vector and rescale it ahead of time so its length is always exactly 1 — this is what "L2-normalizing" means — then the division step in the cosine formula becomes dividing by 1 times 1, which is just dividing by 1. Dividing by 1 does nothing. So once every vector already has length 1, the cosine similarity formula collapses down to just the dot product on its own — the division was only ever needed to cancel out magnitude, and if magnitude is already fixed at 1 for everything, there's nothing left to cancel.
+
+This matters practically because a plain dot product is cheaper to compute than cosine similarity — you skip calculating and dividing by two magnitudes for every single comparison. So production systems normalize every vector once, at the time they're first created (ingestion), and then use the cheaper dot product for every search comparison afterward, getting the exact same result as cosine similarity would have given, for less computation per comparison.
+
+*One-liner: cosine similarity divides the dot product by both vectors' lengths to cancel out magnitude — if you normalize every vector to length 1 ahead of time, that division becomes dividing by 1, so the formula collapses into a plain dot product, which is cheaper to compute at search time.*
+
+**Q: When will dense embeddings fail and sparse/BM25 succeed? Give a concrete example.**
+A: Dense embeddings are built to capture *meaning* — they're good at recognizing that two different wordings are really asking about the same idea. But that strength becomes a weakness for anything where the *exact characters* matter more than the general topic.
+
+Take a concrete example: a user searches for "error TS-999" in a technical support knowledge base. A dense embedding model has likely never seen this specific error code before, or seen it rarely — it has no strong semantic "meaning" to anchor onto, since it's essentially an arbitrary identifier, not a concept. The embedding might end up placing this query somewhere vaguely near "error codes" or "troubleshooting" in general, but it has no special mechanism for recognizing that a document containing the literal string "TS-999" is almost certainly the single most relevant one — to the embedding, "TS-999" and "TS-998" might look nearly identical, even though for a human searching by error code, only an exact match actually matters.
+
+This is exactly the situation sparse retrieval (like BM25) excels at. BM25 works by directly matching words and terms that literally appear in both the query and the document, weighted by how rare and distinctive those terms are. An exact, unusual string like "TS-999" is precisely the kind of rare, distinctive term BM25 rewards heavily — if a document contains that exact text, BM25 will surface it near the top, regardless of whether an embedding model understood any deeper "meaning" behind it. This is exactly why production retrieval systems often combine both: dense for conceptual, meaning-based queries, and sparse for exact codes, names, IDs, and other identifiers where precision beats meaning.
+
+*One-liner: dense embeddings are tuned for meaning and often can't distinguish arbitrary identifiers like "error TS-999" from similar-looking ones — sparse/BM25 retrieval matches exact rare terms directly, which is exactly what identifiers, codes, and names need, so combining both covers meaning-based and exact-match queries together.*
+
+**Q: What breaks if you embed your corpus with model A and search it using model B?**
+A: The entire thing breaks, even though nothing throws an obvious error — and that's what makes this mistake particularly dangerous.
+
+Here's why: each embedding model learns its own internal "meaning space," shaped by its own training process. Two different models don't produce vectors in the same coordinate system — a vector from model A living at some particular set of numbers has no guaranteed relationship to a vector from model B living at a similar-looking set of numbers. "Similar" vectors from two different models aren't actually comparable just because they happen to be made of the same count of floating-point numbers with roughly the same scale.
+
+So if your documents were embedded using model A, and you then embed a new search query using model B, and compare that query vector against your document vectors using cosine similarity or dot product — you'll get similarity scores back. They're not meaningless numbers, computation-wise. But they don't actually reflect real semantic similarity anymore, because the two sets of vectors were never placed in a shared, comparable space to begin with. The scores you get back are essentially noise dressed up as a real similarity signal — sometimes right by coincidence, usually not meaningfully ranked at all.
+
+This is why the rule is absolute: the exact same model and version has to be used to embed both your document corpus and every search query against it. If you ever switch embedding models — even to a newer version of the same model family — you have to re-embed your entire corpus from scratch. There's no way to "convert" embeddings from one model's space into another's after the fact.
+
+*One-liner: different embedding models place text in different, incompatible meaning-spaces, so comparing a model-B query against model-A documents gives similarity scores that look valid but aren't meaningful — the same model and version must embed both the corpus and every query, and switching models means re-embedding everything from scratch.*
+
+**Q: What is a Matryoshka embedding, and what dial does it give you?**
+A: Picture Russian nesting dolls — each smaller doll fits inside a bigger one, and each one is still a complete, functional doll on its own. A Matryoshka embedding is trained the same way: it's a single, large embedding vector (say, 1536 numbers long) that's deliberately trained so that the *first* 256 numbers of it, taken alone, already form a decent, usable embedding by themselves — and the first 512 numbers form an even better one, and so on, all the way up to using the full 1536.
+
+Normally, if you wanted a smaller, cheaper embedding, you'd have to train (or find) a genuinely different, smaller model — there's no way to just chop a regular embedding in half and expect it to still mean anything, since every number in a normal embedding depends on the full set to make sense together. Matryoshka training specifically arranges the information so that earlier dimensions carry the most essential meaning, and later dimensions add progressively finer detail on top — similar to how a blurry low-resolution image is still recognizable, and more detail sharpens it further rather than being required for it to make any sense at all.
+
+What this gives you in practice is a single dial you control *after* the embeddings have already been generated: you can truncate a 1536-dimension vector down to 256 dimensions when you need a smaller index (less storage, less memory, faster search), accepting a bit of quality loss — and you can switch back to the full size when you need maximum retrieval quality, all without retraining or re-generating anything. It turns "pick a dimension size" from a fixed decision baked in at model-selection time into a flexible tradeoff you can adjust per use case.
+
+*One-liner: a Matryoshka embedding is trained so that truncating it (using just the first N numbers instead of all of them) still gives a usable, if slightly lower-quality, embedding — turning vector size into a dial you can adjust after the fact to trade quality for storage and speed, instead of a fixed choice you make once.*
+
+**Q: Estimate the index size for 2 million chunks at 1536 dimensions, stored as float32.**
+A: Work this out from the basic unit: one float32 number takes 4 bytes of storage, no matter what it represents. Each chunk's embedding has 1536 of these numbers, so one embedding takes `1536 × 4 = 6,144 bytes`, or about 6 KB.
+
+Now multiply by how many chunks you have: `2,000,000 chunks × 6,144 bytes = 12,288,000,000 bytes`. Converting that to a more readable unit: dividing by 1 billion (since 1 GB is roughly 1 billion bytes) gives about 12.3 GB.
+
+So storing the raw vectors alone for 2 million chunks at this size takes roughly 12 GB — and that's before accounting for whatever index structure sits on top (like the graph structure in HNSW, which adds its own overhead on top of the raw vectors) or any metadata stored alongside each chunk. This is exactly the kind of back-of-envelope math worth being able to do quickly, since "how big will this be, and what will it cost to host" is one of the first questions that comes up when planning real infrastructure.
+
+*One-liner: each float32 number is 4 bytes, so a 1536-dimension embedding is `1536 × 4 = 6,144 bytes` (~6 KB) — multiplied by 2 million chunks, that's about 12.3 GB just for the raw vectors, before adding index structure or metadata overhead.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Generating and Comparing Embeddings]], [[04 Code Snippets/LLM/Semantic Search Over a Corpus]]

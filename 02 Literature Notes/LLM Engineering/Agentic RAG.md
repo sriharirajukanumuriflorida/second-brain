@@ -142,6 +142,55 @@ for scores in [[0.8,0.7,0.2], [0.7,0.3], [0.4,0.3], []]:
 4. Why are budgets essential?
 5. What can the final answer cite?
 
+---
+
+## 9. Interview Q&A
+
+**Q: How is agentic RAG fundamentally different from one-shot RAG?**
+A: In one-shot (standard) RAG, retrieval happens exactly once, as a fixed step that runs *before* the model ever sees the question — search once, hand the model whatever came back, and ask it to answer. The model itself has no say in this process; it just receives whatever evidence the one fixed retrieval step happened to find, good or bad.
+
+In agentic RAG, retrieval becomes something the reasoning process can call *during* its own reasoning, potentially multiple times, adaptively. The agent can look at what the first search returned, decide it's insufficient or off-target, and deliberately search again — with a refined query, a different source, or a narrower follow-up question based specifically on what the first search revealed was missing. This is a fundamentally different control flow: instead of "search once, then reason," it's "reason, search, inspect what came back, reason some more about what's still needed, search again if necessary," repeating until the evidence is actually sufficient or some stopping condition is hit.
+
+This adaptivity is what makes agentic RAG valuable for genuinely multi-hop or ambiguous questions, where the first search might reveal an important detail (like "oh, I need to also know X") that the original, upfront query had no way of anticipating — a fixed, one-shot retrieval step would just return whatever imperfect first-pass results it could and stop there, with no mechanism to notice the gap and adaptively search again.
+
+*One-liner: one-shot RAG retrieves exactly once, as a fixed step before the model ever reasons about the question — agentic RAG lets retrieval be called adaptively during reasoning itself, so the system can inspect what came back, recognize it's insufficient, and deliberately search again with a refined approach, which is what makes it handle multi-hop or ambiguous questions that a single fixed search would miss.*
+
+**Q: What specifically should the evidence grader decide, and what should it be checking?**
+A: The evidence grader's job is to answer one core question after each retrieval attempt: is what came back actually good enough to answer the question confidently, or does something need to happen before generation is allowed to proceed? This isn't a binary yes/no in practice — it typically needs to distinguish between several different outcomes, each pointing toward a different next action.
+
+It should check: is the retrieved evidence *relevant* to the actual question being asked (not just superficially similar, but does it actually address what's being asked)? Is there *enough* of it — a single weak hit versus several strong, consistent hits are very different situations? Does the evidence show any internal *contradiction* — different retrieved passages disagreeing with each other, which would need to be flagged rather than silently blended into one confident-sounding answer? And how *strong* is the match overall — a near-miss (close but not quite right) suggests a different corrective action than a complete miss (nothing even close was found).
+
+Critically, this grading shouldn't rely purely on the model's own self-assessment of "do I think this evidence looks good" — that's a noisy signal on its own, since a model can be confidently wrong about whether weak evidence is actually sufficient. In production, this grading should combine the model's critique with more objective, deterministic signals — the actual retrieval relevance scores from the retriever itself, and citation-coverage checks (does the evidence genuinely support the specific claims being made) — rather than trusting the model's subjective judgment about its own evidence in isolation.
+
+*One-liner: the evidence grader decides whether retrieved evidence is relevant, sufficient in quantity, free of internal contradiction, and strong enough to proceed to generation — and it should combine the model's own critique with objective signals like retrieval scores and citation checks, rather than trusting the model's self-assessment of its own evidence alone.*
+
+**Q: When should corrective retrieval rewrite the query versus broaden the sources being searched?**
+A: This decision depends on *what kind* of weak result you're actually looking at — a near-miss and a complete miss call for genuinely different fixes, and picking the wrong one wastes a retry without actually fixing the underlying problem.
+
+Rewrite the query when the evidence is a near-miss — some results came back with a reasonably strong match score, suggesting the right general area or topic was found, but perhaps the specific phrasing of the query didn't quite line up with how the corpus actually discusses this topic. In this situation, the problem is likely how the question was *phrased*, not that the right information doesn't exist in the searched sources at all — so rewriting the query (rephrasing it, adding clarifying terms, trying a different angle on the same underlying question) is the more promising next step, since it's addressing a wording mismatch rather than a fundamentally missing source.
+
+Broaden sources when none of the retrieved evidence scored well at all — everything came back weak, suggesting the issue isn't phrasing, it's that the right information might not even exist in whatever specific source or index was searched in the first place. In this case, rewriting the same query against the same narrow source is unlikely to help much, since the underlying problem isn't the wording — it's that the search is looking in the wrong place entirely. Expanding to search additional sources, or a broader index, is the more promising next step here.
+
+*One-liner: rewrite the query when some results came back reasonably strong (suggesting a phrasing mismatch against the right source), and broaden to additional sources when everything scored weak (suggesting the right information isn't even in the source being searched) — picking based on whether the problem looks like wording or like searching in the wrong place.*
+
+**Q: Why are hard budgets (on tool calls, rewrites, candidate chunks) essential in agentic RAG?**
+A: Because an agentic loop is, by design, allowed to decide for itself to search again — and without an explicit, hard limit on how many times it's allowed to do that, there's nothing structurally preventing it from looping far longer than is useful, or even indefinitely, if it keeps judging its own evidence as insufficient over and over.
+
+Here's the concrete risk without budgets: a question that's just inherently hard to find good evidence for, or a bug in the evidence grading logic that's too conservative, could cause the agent to keep rewriting and re-searching far past the point of any realistic benefit — burning real, billed API calls and real latency on an attempt that was never going to succeed, with no mechanism telling it to stop and just report "I couldn't find sufficient evidence" instead of continuing to try. Every additional retrieval attempt and every additional reasoning step costs real money and real time; an unbounded loop means a single difficult or ambiguous question could silently consume a wildly disproportionate amount of cost compared to a normal question, with no warning until someone notices an unusually expensive or slow request.
+
+Hard budgets — a maximum number of tool calls, a maximum number of query rewrites, a maximum number of candidate chunks considered — turn this open-ended, potentially-unbounded process into something with a predictable worst-case cost and latency. Once a budget is exhausted without reaching sufficient evidence, the defined behavior should be to stop and refuse (following the same citation/refusal contract as any RAG system) rather than continuing indefinitely — an explicit, bounded "I don't have enough information" is vastly preferable to an agent that might, in rare cases, loop for an unpredictable and potentially very large amount of time and cost.
+
+*One-liner: an agentic loop can decide on its own to keep searching again, and without a hard limit on how many times it's allowed to do that, a hard or ambiguous question (or a bug in the grading logic) could cause it to loop far longer than useful — hard budgets on tool calls, rewrites, and chunks cap the worst-case cost and latency, with the defined behavior on exhaustion being an explicit refusal rather than an open-ended, unpredictable loop.*
+
+**Q: What is the final answer in agentic RAG allowed to cite as evidence?**
+A: Only the actual, real documents retrieved through the agent's tool calls during its process — never the agent's own internal reasoning, chain-of-thought, or self-generated critique as if those were themselves evidence.
+
+This distinction matters because agentic RAG involves the model doing a lot of internal reasoning along the way — planning what to search for, critiquing whether evidence looks sufficient, deciding to rewrite a query. All of that reasoning is useful *process* that guides what gets searched and when to stop, but none of it is itself a verified, real fact about the world — it's the model's own generated text, reasoning about what it's seeing, not grounded source material. If the final answer ends up citing or relying on something the agent said to itself during its reasoning process, rather than something an actual retrieved document said, you've broken the core grounding guarantee that makes RAG trustworthy in the first place — you'd effectively be letting the model's own possibly-wrong assumptions sneak into the answer as if they were verified facts.
+
+So the rule carries forward from standard RAG's citation contract unchanged: the final answer must be grounded only in the real, retrieved documents that actually came back from genuine tool calls, cited by their actual source identifiers — and if the agent's loop never found sufficient real evidence (even after exhausting its retry budget), the correct final answer is an explicit refusal, not a confident-sounding synthesis built from the agent's own internal reasoning standing in for evidence it never actually found.
+
+*One-liner: the final answer can only cite real documents that actually came back from genuine retrieval tool calls — never the agent's own internal reasoning, planning, or self-critique, since that's process, not verified evidence, and letting it stand in for real evidence breaks RAG's core grounding guarantee.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Iterative Retrieval Agent Loop]], [[04 Code Snippets/LLM/Corrective RAG Retrieval Gate]]

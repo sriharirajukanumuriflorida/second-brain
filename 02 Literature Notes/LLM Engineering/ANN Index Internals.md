@@ -169,6 +169,74 @@ for ef in (16, 32, 64, 128, 256):
 5. You have 200M vectors and a tight RAM budget — which index and why?
 6. How do you measure and report ANN quality honestly? (Hint: recall@k at equal latency.)
 
+---
+
+## 9. Interview Q&A
+
+**Q: Explain HNSW as a skip list — what do the upper layers do, and why is search roughly O(log N)?**
+A: A skip list is a classic trick for searching a sorted list faster than checking one item at a time: instead of just one layer of items in order, you build several layers on top, where each higher layer contains only a sparse sample of the items below it — like express lanes on a highway that skip over most of the exits.
+
+HNSW builds the exact same idea, but for vectors instead of sorted numbers. The bottom layer contains every single vector in your corpus. Each layer above that contains a random, sparse subset of the vectors from the layer below — so the very top layer might only have a handful of vectors, acting as quick, coarse "entry points" into the whole structure.
+
+A search starts at the top, sparse layer. From the current point, it greedily moves to whichever neighbor is closest to the query — "greedily" meaning it always takes the most promising next step available, without looking further ahead. Once it can't find any neighbor closer than where it already is on the current layer, it drops down to the next, denser layer and repeats the same greedy walk, now with more options available. By the time it reaches the bottom, full layer, it's already very close to the true answer, and only needs a small amount of further refinement.
+
+The reason this ends up costing roughly O(log N) instead of O(N): each layer is deliberately built to be sparser than the one below it (similar to how a skip list's layers roughly halve in size), so the number of layers you have to pass through grows very slowly even as the total number of vectors grows a lot. You're not checking every vector — you're taking a small number of big jumps at the top, then progressively smaller, more careful steps as you descend, which is exactly the shape that gives you logarithmic rather than linear search cost.
+
+*One-liner: HNSW stacks sparser and sparser layers on top of the full set of vectors, like a skip list's express lanes — search starts at the sparse top layer and greedily descends toward the query, taking big jumps early and small refinements late, which is why it costs roughly O(log N) instead of checking every vector.*
+
+**Q: What do M, efConstruction, and efSearch each control, and which one is a query-time dial?**
+A: These three knobs control HNSW at two different points in its life: when the graph is first being built, and when it's actually being searched.
+
+`M` controls how many connections ("edges") each vector gets to other vectors when the graph is built — think of it as how many neighbors each point in the graph knows about directly. A higher `M` means a richer, more densely connected graph, which generally improves recall (better chance of finding the true nearest neighbors), but it also means more memory, since you're storing more links per vector. This is a build-time decision — once the graph exists with a certain `M`, you can't easily change it without rebuilding.
+
+`efConstruction` also only matters while the graph is being built — it controls how large a list of candidate neighbors the algorithm considers while deciding which connections to actually keep for each new vector being inserted. A higher `efConstruction` means a more careful, thorough search for good neighbors during construction, producing a higher-quality graph, at the cost of a slower build process. Like `M`, this is locked in once the index is built.
+
+`efSearch` is the one that's different: it only matters at query time, not build time, and it controls how large a candidate list the greedy walk keeps track of while actually answering a search. This is the dial you can freely adjust after the index already exists, per query if you want — raise it, and the search considers more candidates before settling on an answer, improving recall at the cost of more time per query; lower it, and search gets faster but risks missing some true neighbors.
+
+*One-liner: M (connections per vector) and efConstruction (candidate list size during build) are both build-time decisions baked into the graph — efSearch is the one query-time dial you can freely adjust afterward to trade recall against latency, live, without rebuilding anything.*
+
+**Q: Why does IVF miss neighbors, and how does nprobe address it? What's the cost?**
+A: IVF works by grouping vectors into clusters (using something like k-means) and, at query time, only searching inside the clusters closest to the query — rather than scanning everything. This is the whole source of its speed, but it's also exactly where it can go wrong.
+
+The problem is what happens near the *edges* of these clusters. Clustering divides the vector space into regions, but a true nearest neighbor to your query might happen to sit just barely on the other side of a cluster boundary — closer to your query in actual distance, but technically assigned to a different, neighboring cluster because that's where the clustering algorithm happened to draw the line. If you only search the single closest cluster, you'll completely miss that neighbor, even though it was genuinely one of the closest vectors to your query — it's an artifact of how the space got carved up, not a reflection of actual similarity.
+
+`nprobe` is the fix: instead of only searching the single nearest cluster, you search the `nprobe` nearest clusters instead. Raising `nprobe` means checking more neighboring clusters, which catches more of these boundary cases — a true neighbor that got assigned just across a boundary from your query's own cluster is much more likely to be caught if you're also checking the next few closest clusters, not just the one.
+
+The cost is the obvious tradeoff: searching more clusters means more work per query, so raising `nprobe` directly increases latency in exchange for better recall. Taken to its extreme, setting `nprobe` equal to the total number of clusters means you're searching every cluster — which is just exact, brute-force search again, with none of IVF's speed benefit left.
+
+*One-liner: IVF only searches the clusters nearest the query, which can miss true neighbors sitting just across a cluster boundary — raising nprobe searches more neighboring clusters to catch these boundary cases, trading more latency for better recall, with nprobe=all clusters degenerating back into exact search.*
+
+**Q: How many bytes does PQ use per 768-dimension vector with m=64, nbits=8, and why do you re-rank the results afterward?**
+A: Work through what PQ actually stores. Instead of keeping the full vector, PQ splits each vector into `m` smaller sub-vectors, and for each sub-vector, it replaces the actual numbers with just the ID of whichever pre-learned cluster that sub-vector is closest to. With `nbits=8`, each of those cluster IDs needs exactly 1 byte to store (since 8 bits can represent up to 256 distinct cluster IDs).
+
+So the storage per vector is simply `m × (nbits / 8)` bytes — with `m=64` and `nbits=8`, that's `64 × 1 = 64 bytes` per vector. Compare that to the original: a 768-dimension float32 vector takes `768 × 4 = 3,072 bytes`. So PQ compresses this down from 3,072 bytes to just 64 bytes — roughly a 48x reduction in size, which is why PQ lets you fit far more vectors into the same amount of RAM.
+
+Here's why you can't just trust the PQ-based ranking directly, though: this compression is lossy. Each sub-vector gets replaced by the *nearest cluster's* representative value, not its own exact original value — so the distance you compute using these compressed codes is only an approximation of the true distance, not the real thing. Two vectors that are actually slightly different distances from the query could easily get assigned to the same cluster IDs and look identical under PQ, even though they weren't identical originally. This means the PQ-based ranking can genuinely put the wrong candidate first, or miss subtle but real differences between close candidates.
+
+The fix is a re-ranking step: use PQ to quickly narrow a huge corpus down to some larger set of plausible candidates (say, the top 100), then go back and compute the *real, exact* distance using the original, full-precision vectors for just those 100 candidates, and re-sort based on that. This gets you PQ's massive memory savings for the expensive part (searching across millions of vectors) while still getting an exact, trustworthy final ranking for the much smaller set of candidates that actually matter.
+
+*One-liner: PQ storage is `m × (nbits/8)` bytes per vector — with m=64, nbits=8, that's 64 bytes (a 48x shrink from the original 3,072-byte float32 vector) — but since PQ distances are only approximate, a final re-ranking step using exact full-precision vectors on the narrowed candidate set is needed to get a trustworthy final ranking.*
+
+**Q: You have 200 million vectors and a tight RAM budget — which index would you choose, and why?**
+A: Start from what each index family actually trades off, then match that against the specific constraint here, which is memory, not just raw speed.
+
+HNSW gives excellent recall and fast search, but it stores the full, uncompressed vectors *plus* an entire graph of connections on top of that — this is the most memory-hungry of the three options. At 200 million vectors, storing full vectors alone is already a large amount of memory, and HNSW adds the graph structure on top of that. Given that the stated constraint here is a *tight* RAM budget, HNSW alone is likely to be the wrong choice, or at least risky, at this scale.
+
+IVF alone helps with speed (by pruning which clusters to search) but doesn't actually reduce how much memory each vector takes up — you're still storing full, uncompressed vectors, just organized into clusters. So IVF by itself doesn't solve the memory problem here either.
+
+This is exactly the situation `IVFPQ` (combining both) is built for: IVF prunes the search space for speed, while PQ compresses each vector down to a small code (as in the question above, potentially 48x smaller or more), so the actual memory footprint for 200 million vectors becomes dramatically smaller than storing them at full precision. The tradeoff is some loss of raw accuracy from the compression, which is why you'd pair this with an exact re-rank step on the narrowed candidates, and the fact that IVF needs a training pass on representative data before you can start adding vectors to it.
+
+*One-liner: at 200M vectors with a tight RAM budget, IVFPQ is the right choice — IVF prunes the search space for speed and PQ compresses each vector for memory, together making billion-scale search fit in much less RAM than HNSW's full-vector-plus-graph approach would require, at the cost of needing a re-rank step to recover exact accuracy.*
+
+**Q: How do you measure and report ANN index quality honestly?**
+A: The one rule that matters most here: never compare two indexes (or two settings of the same index) by raw speed alone, without also stating what recall each one achieved — because speed without a recall number attached is a meaningless, even misleading comparison.
+
+Here's why: it's trivially easy to make any ANN index extremely fast by cranking its recall-sacrificing settings (a tiny `efSearch`, a tiny `nprobe`) all the way down — but that fast result might be returning genuinely poor results, missing many true neighbors. If you only report "queries per second," you could be comparing a fast-but-inaccurate configuration against a slower-but-much-more-accurate one, and the raw speed number alone would make the worse option look like the winner.
+
+The honest way to report this: first, measure recall@k against an exact, brute-force baseline (as covered in Vector Search) — this tells you what fraction of the true top-k results your approximate index is actually finding. Then, report latency *at a specific, stated recall level* — for example, "at 95% recall, this index answers queries in 12 milliseconds" — rather than just "this index does X queries per second" with no recall number attached at all. Ideally, you'd show a full recall-vs-latency curve (sweeping a knob like `efSearch` or `nprobe` across several values) so you can see the full tradeoff, and pick the operating point that fits your actual latency budget while still hitting an acceptable recall floor — and you can defend that specific choice with real data, not just a single flattering number.
+
+*One-liner: always report ANN speed alongside the recall it achieved — comparing raw speed without stating recall is misleading, since recall can trivially be sacrificed for speed; the honest practice is reporting latency at a fixed, stated recall level (or better, a full recall-vs-latency curve) so the tradeoff is visible and defensible.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/HNSW and IVF with FAISS]], [[04 Code Snippets/LLM/Tuning ANN Recall vs Latency]]

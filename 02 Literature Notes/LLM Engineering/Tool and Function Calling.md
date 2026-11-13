@@ -118,6 +118,55 @@ print(safe_run({"name":"add","arguments":{"a":"2","b":3}}))
 4. What are the main failure modes?
 5. When would you choose the simpler design?
 
+---
+
+## 9. Interview Q&A
+
+**Q: What is the core abstraction behind tool/function calling — what's actually happening when a model "calls a tool"?**
+A: The core idea is a clean split of responsibility: the model only ever *proposes* an action, and your own code is what actually *decides whether to run it and then executes it*. The model never directly does anything to the real world — it just emits a structured request (a tool name plus arguments) as text/JSON output, the same way it would emit any other structured response.
+
+This split matters because it means the model is never trusted with real authority by itself — it's a planner suggesting "I think the next useful step is to call this tool with these arguments," and your runtime is the actual gatekeeper that validates that request, checks whether it's allowed, executes it for real if so, and then hands the result (an "observation") back to the model to continue reasoning with. The model's proposal and your system's execution are two genuinely separate steps, with a validation and authorization boundary sitting between them — not one single action where the model directly causes something to happen.
+
+*One-liner: a tool call is the model proposing a structured action (name + arguments) as output — never executing anything itself — while your own runtime code is the separate, final decision-maker that validates, authorizes, and actually executes the action, then returns the real result back to the model.*
+
+**Q: Where exactly should argument validation happen, and why there specifically?**
+A: Validation has to happen in your own runtime code, after the model proposes a call but strictly before that call is actually executed — never trusted to have already been done correctly just because the model generated something that looks like valid arguments.
+
+Here's why this placement matters: the model is a probabilistic text generator, not a guaranteed-correct type-checker. Even a well-behaved model can occasionally emit a call with a missing required field, a wrong type (a string where a number was expected), or a value outside an expected range — and if your system just directly executes whatever the model proposed without checking it first, a malformed call could cause a real error downstream (a tool crashing on bad input), or worse, could end up executing something harmful if the bad argument wasn't just malformed but actually dangerous (an unexpected or out-of-range value reaching a real system).
+
+So the validation step has to sit as a hard gate, structurally positioned between "model proposed this" and "this actually runs" — checking the argument types, required fields, and any value constraints match the tool's schema, and refusing to execute (returning a clear, structured error instead) if they don't. This is the same principle as validating any external, untrusted input before acting on it — the fact that the "untrusted input" here happens to come from an LLM rather than a user-facing form doesn't change the need to validate it before it's allowed to cause a real side effect.
+
+*One-liner: validation happens in your own code, as a hard gate between the model's proposed call and its actual execution — never skipped, since the model is a probabilistic generator that can emit malformed or out-of-range arguments, and that mistake becomes a real failure or risk only once it's actually allowed to execute.*
+
+**Q: What specifically should be logged/traced in a tool-calling system?**
+A: Enough that you could fully reconstruct, after the fact, exactly what the model asked for, what your system decided, and what actually happened — without that full trace, debugging a tool-calling failure becomes pure guesswork.
+
+Concretely, that means logging: the exact tool call the model proposed (name and arguments, verbatim, not a paraphrase); whether it passed or failed validation, and the specific reason if it failed; whether it was authorized to execute (and if not, why it was blocked); the actual result or error that came back from real execution; and the timing of all of this, since a tool call that silently timed out or took unusually long is itself a useful signal.
+
+The reason this level of detail matters: when something goes wrong in production — the model took an unexpected action, or a user reports a wrong result — you need to be able to answer, precisely, "what exactly did the model ask for, did our system correctly validate/authorize it, and what did the tool itself actually return." Without a full trace capturing each of these stages separately, you're left unable to tell whether a bad outcome came from the model proposing something wrong, your validation/authorization logic having a bug, or the tool itself misbehaving — three very different problems that would each need a completely different fix.
+
+*One-liner: log the exact proposed tool call (name + arguments), the validation/authorization outcome (pass, fail, or blocked, with the specific reason), the actual execution result, and timing — this full trace is what lets you tell apart "the model proposed something wrong" from "our validation had a bug" from "the tool itself misbehaved" when debugging a failure.*
+
+**Q: What are the main failure modes in tool-calling systems?**
+A: Several distinct ways this can go wrong, each needing a different specific defense.
+
+Generic, overly broad tools — something like a single "run arbitrary code" or "execute any SQL query" tool — are dangerous because they hand the model (and, transitively, anything that can influence the model's behavior, including a malicious prompt injection) essentially unlimited capability through one single call, rather than a narrow, specific, auditable action. The fix is preferring many narrow, specifically-scoped tools over one broad, do-anything tool.
+
+Missing argument validation (covered above) lets malformed or malicious arguments reach real execution unchecked. Running mutating (write) actions in parallel is dangerous because unlike read-only lookups, writes can have ordering dependencies or conflict with each other — running them concurrently risks a race condition or an inconsistent final state; only independent, side-effect-free reads should ever be safely parallelized.
+
+Vague error messages returned to the model (just "error" with no detail) prevent the model from actually understanding what went wrong and correcting itself on a retry — a structured, specific error (which field was wrong, what was expected) is what actually lets a retry succeed. Trusting tool output or injected content as if it were inherently safe instructions (rather than just data to read) opens the door to prompt injection, where a malicious tool result tries to manipulate the model's subsequent behavior. And having no audit trail at all (covered in the logging question above) makes any of these failures, if they do occur, essentially undebuggable after the fact.
+
+*One-liner: the main failure modes are overly broad "do-anything" tools (too much capability per call), missing argument validation (malformed input reaching real execution), parallelizing writes (race conditions/inconsistent state), vague errors (the model can't self-correct), trusting tool output as instructions rather than data (injection risk), and no audit trail (undebuggable after the fact) — each needs its own specific defense, not one generic fix.*
+
+**Q: When would you choose a simpler tool-calling design over a more complex, flexible one?**
+A: When the actual task is narrow, well-understood, and doesn't genuinely need the model to improvise or choose between many different possible actions — in those cases, a simpler, more constrained design is both safer and easier to get right than a more flexible, general-purpose one.
+
+Concretely: if you're building a fixed pipeline where you already know exactly which tool needs to be called, in what order, and with roughly what arguments — forcing a specific tool call (rather than leaving the model free to choose among many options) is simpler, more predictable, and removes an entire class of failure modes (the model picking the wrong tool, or hallucinating a tool that doesn't exist) that a more open-ended "let the model decide" design would have to guard against. Similarly, if the set of things the model genuinely needs to be able to do is small and well-defined, a handful of narrow, specific tools is both easier to validate thoroughly and easier to reason about the full "blast radius" of, compared to a larger, more flexible toolkit designed to handle many possible future needs that may never actually come up.
+
+The general principle: added flexibility (more tools, more model autonomy in choosing between them, more open-ended reasoning about what to do next) is a real cost, not free — it adds surface area for things to go wrong, and makes the system's behavior harder to fully predict, test, and audit. You should only take on that cost when the actual task genuinely requires that flexibility — a simple, narrow, more constrained design is the right choice whenever it's sufisufficient for the real task at hand, rather than building in flexibility "just in case" it might be needed later.
+
+*One-liner: choose a simpler, more constrained design (fewer tools, forced rather than free tool choice) whenever the actual task is narrow and well-understood enough not to need the model's full flexibility — added flexibility is a real cost (more failure surface, harder to fully test and audit), so it's only worth taking on when the task genuinely requires it, not built in "just in case."*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/Validated Function Call Executor]], [[04 Code Snippets/LLM/Structured Tool Error Return]]

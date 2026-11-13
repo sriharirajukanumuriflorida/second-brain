@@ -159,6 +159,57 @@ print("speedup ~", no_cache(toks)//with_cache(toks), "x at seq=200")
 4. Is FlashAttention a quality tradeoff? Why or why not?
 5. How can MoE add parameters without adding per-token compute — and what's the catch?
 
+---
+
+## 9. Interview Q&A
+
+**Q: Why is LLM inference usually memory-bandwidth bound, not compute bound?**
+A: Think about what the GPU actually spends its time doing while generating one token at a time. For each new token, the model has to read its entire set of weights (and the growing KV cache) from GPU memory into the chip's fast compute units, do a relatively small amount of math with them, then throw that work away and do it all again for the next token. The amount of math per token is actually fairly small — but the amount of *data that has to move* to do that math is huge, since you're dragging the whole weight set through memory every single step.
+
+Compare that to training, where you process many tokens at once in large batches — the same weights get reused across a big batch of data before moving on, so the cost of moving the weights gets spread across a lot of useful computation. During single-token generation, you don't get that benefit — you're moving the same huge amount of data for a tiny amount of work each time.
+
+This is exactly what "memory-bandwidth bound" means: the GPU's compute units are sitting idle, waiting for data to arrive from memory, rather than being the actual bottleneck themselves. This is why techniques that reduce how much data has to move (smaller weights via quantization, a smaller cache via GQA, avoiding extra memory writes via FlashAttention) help so much more than techniques that would only reduce the amount of math — the math was never really the problem.
+
+*One-liner: generating one token at a time means moving the whole weight set through memory for just a small amount of math each step, so the GPU spends most of its time waiting on data to arrive rather than being limited by how much math it can do — which is why shrinking what has to move (quantization, smaller caches) helps more than cutting raw computation.*
+
+**Q: Write the KV-cache size formula — when does it exceed the model's own weights?**
+A: Start from what the cache actually stores: for every layer, for every token processed so far, you keep one Key vector and one Value vector. So the total size is: 2 (for K and V) times the number of layers, times the sequence length, times the model's width, times how many bytes each number takes, times how many requests you're serving at once (the batch size).
+
+The part that matters most here is that this cache grows with *sequence length* and *batch size* — two things that have nothing to do with how big the model itself is. The model's weights are a fixed size no matter what you're doing with the model. But the cache keeps growing the longer the conversation gets and the more requests you're handling simultaneously.
+
+So the cache exceeding the weights isn't some rare edge case — it's just a matter of context length and concurrent users getting large enough. A very long document, or many simultaneous users each with a long conversation, can easily need more memory for the cache alone than the entire model weighs. This is why context length isn't "free" even once a model is loaded and running — every additional token of context costs ongoing memory for as long as that conversation is active, for every active user.
+
+*One-liner: KV cache size is 2 x layers x sequence length x model width x bytes x batch size — since it grows with context length and number of concurrent users rather than model size, a long enough conversation or large enough batch can easily make the cache bigger than the model's own weights.*
+
+**Q: How do MQA and GQA differ, and what do they save?**
+A: Standard multi-head attention gives every attention head its own separate Key and Value. That means the KV cache has to store a full, separate set of K/V for every single head — and modern models can have dozens of heads, so this adds up fast.
+
+Multi-Query Attention (MQA) takes this to one extreme: instead of each head having its own K/V, *all* heads share just one single K/V. This shrinks the cache dramatically — instead of, say, 32 separate K/V sets, you store just 1. The tradeoff is a bit of lost quality, since all the heads are now forced to look at the exact same Key/Value information instead of each having its own.
+
+Grouped-Query Attention (GQA) is a middle ground: instead of one shared K/V for everyone, you split heads into a handful of groups (say, 8 groups for 32 heads), and heads within the same group share one K/V. This keeps most of the cache savings of MQA — you still store far fewer K/V sets than one-per-head — while keeping more of the quality benefit of separate heads, since you haven't forced every single head down to the exact same view. This is why most modern large models (LLaMA-2 70B, Mistral, and others) use GQA specifically — it captures most of the memory win with much less quality cost than going all the way to MQA.
+
+*One-liner: MQA shares one Key/Value across all attention heads (biggest cache savings, some quality cost); GQA shares K/V across a handful of groups instead of all heads (most of the savings, much less quality cost) — which is why GQA is the common choice in modern models.*
+
+**Q: Is FlashAttention a quality tradeoff? Why or why not?**
+A: No — and this is an important distinction to get right, because it's easy to lump it in with other efficiency tricks that *do* trade away some quality.
+
+Regular attention, as a side effect of how it's normally implemented, builds a full table comparing every word against every other word, and that whole table has to sit in memory at once before you can finish the softmax step on it. For long sequences, that table gets very large, and just moving it in and out of memory is slow.
+
+FlashAttention doesn't change *what* gets computed at all — it computes the exact same mathematical result. What it changes is *how* that computation is organized: instead of building the whole giant table in one go, it processes small chunks at a time, keeping just enough running totals to still get the mathematically correct final answer, and never writes the full giant table out to slower memory at all. The output, bit for bit (aside from ordinary floating-point rounding, same as any reordered calculation), is the same attention result you'd get from the regular approach.
+
+So this is purely an implementation trick — a smarter way to organize the same math so it moves less data around — not a different, approximate version of attention. That's different from something like quantization or MQA, which genuinely do accept a small amount of quality loss in exchange for speed or memory savings.
+
+*One-liner: FlashAttention computes the exact same attention result, just by processing it in smaller chunks and never building the full giant score table in slow memory — it's a smarter way to organize identical math, not an approximation, so there's no quality tradeoff involved.*
+
+**Q: How can Mixture of Experts (MoE) add parameters without adding per-token compute — and what's the catch?**
+A: A regular model has one MLP per layer, and every single token has to pass through that one MLP. MoE replaces that one MLP with several separate "expert" MLPs (say, 8 of them) plus a small router that looks at each token and decides which experts should handle it — but critically, it only sends each token to a *few* of those experts (say, 2 out of 8), not all of them.
+
+Here's why that saves compute: even though the model now technically contains 8 experts' worth of parameters, any single token only ever gets processed by 2 of them. So the actual amount of math done per token stays about the same as if there'd only been 2 experts all along — the other 6 simply aren't involved for that particular token. Different tokens can get routed to different pairs of experts, so across many tokens, the model as a whole ends up using all of its knowledge, just never all at once for any single token.
+
+The catch is memory, not compute: even though only 2 experts fire per token, all 8 experts' weights still have to be loaded into memory and ready to go, since you don't know in advance which 2 a given token will need. So MoE models are "cheap" to run per token but "expensive" to simply hold in memory — you need enough memory for every expert, even the ones that happen to go unused for any particular input. There's also added complexity in making sure tokens get routed fairly across experts, so a few experts don't end up overloaded while others sit idle.
+
+*One-liner: MoE swaps one MLP for several expert MLPs plus a router that sends each token to only a few of them, so per-token compute stays low even as total parameters grow — but all the experts still have to sit in memory ready to be used, so MoE saves compute while costing more memory.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
 - Code: [[04 Code Snippets/LLM/KV Cache Memory Estimator]], [[04 Code Snippets/LLM/KV Cache Reuse Demo]]
