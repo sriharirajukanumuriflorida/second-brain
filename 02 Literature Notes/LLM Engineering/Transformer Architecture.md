@@ -7,7 +7,7 @@
 - Track: LLM Engineering (self-directed, FDE roadmap)
 - Slide deck: `07 Resources Library/LLM Engineering/Slides/Lesson_08_Transformer_Architecture.pptx`
 - Hands-on notebook: `07 Resources Library/LLM Engineering/Notebooks/08_Transformer_Architecture.ipynb` (runs offline)
-- Reference reading: Vaswani et al. (arXiv:1706.03762); Radford et al. GPT-2; Karpathy nanoGPT; 'The Illustrated GPT-2' (Alammar); Elhage et al. 'A Mathematical Framework for Transformer Circuits' (Anthropic)
+- Reference reading: [[02 Literature Notes/Papers/Vaswani et al. 2017 - Attention Is All You Need]] (arXiv:1706.03762); Radford et al. GPT-2; Karpathy nanoGPT; 'The Illustrated GPT-2' (Alammar); Elhage et al. 'A Mathematical Framework for Transformer Circuits' (Anthropic)
 - Builds on: [[02 Literature Notes/LLM Engineering/Attention Deep-Dive]]
 - Date: 2026-07-18
 

@@ -11,6 +11,7 @@
 
 ## Master Synthesis Map
 - [[06 Maps of Content/FDE Engagement Architecture — Master Map]] — cross-cutting map that ties the full 24-week FDE roadmap into one engagement flow (start here for review / interview prep)
+- [[06 Maps of Content/AI-ML Topics Covered — Chronological]] — every AI/ML topic in the vault, flattened into one chronological learning-order list with plain explanations
 
 ## Concept Maps
 - [[06 Maps of Content/Python Concepts]]
