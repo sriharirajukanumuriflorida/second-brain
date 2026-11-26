@@ -49,6 +49,15 @@ Task metrics answer whether the model did the job. System metrics answer whether
 ### 6.5 Building the harness
 A harness loads versioned cases, runs the production path, scores deterministically where possible, writes per-case artifacts, summarizes by slice, compares to baseline, and fails CI on thresholds.
 
+### 6.6 Response, step, and trajectory evaluation (agents)
+Everything above describes evaluating a single input-to-output mapping. A multi-step agent (per [[02 Literature Notes/LLM Engineering/Agent Loops and Planning]]) needs evaluation at three distinct levels, because a correct final answer can hide a badly-run process, and a wrong final answer can hide an almost-correct process:
+
+- **Response-level**: did the final output match what was expected? Same reference-based/reference-free scoring as any other eval (6.3), just applied to the agent's last message.
+- **Step-level**: was each individual action the agent took (each tool call, each intermediate decision) itself correct and well-formed, independent of whether the final answer happened to come out right? A step-level check can catch an agent that called the wrong tool, then recovered by luck, or that passed malformed arguments that happened not to matter for this particular input.
+- **Trajectory-level**: was the *path* the agent took — the full sequence of steps, in order — efficient and sensible, not just individually-valid? This catches failures a step-level check misses on its own: redundant repeated tool calls, backtracking that signals confused planning, or a correct final answer reached only after an unreasonable number of steps that would be too slow or expensive to tolerate at scale.
+
+A harness scoring only response-level risks shipping an agent whose process is fragile or expensive even when its answers look fine on the golden set — the golden set's inputs may not expose the inefficiency, while real traffic does. Score all three levels against a labeled trajectory dataset (expected tool sequence, not just expected final answer) when the task genuinely depends on *how* the agent got there, not only *what* it concluded.
+
 ---
 
 ## 3. Implementation
@@ -56,6 +65,7 @@ A harness loads versioned cases, runs the production path, scores deterministica
 Assumed stack: stdlib + numpy. The snippets are offline and deterministic so they can run in CI before API-backed evaluation. Snippets:
 - [[04 Code Snippets/LLM/Golden Dataset Metric Harness]]
 - [[04 Code Snippets/LLM/Eval Slice Gate]]
+- [[04 Code Snippets/LLM/Trajectory Level Agent Scorer]]
 
 ### Golden Dataset Metric Harness
 Minimal reference-based harness with precision, recall, F1, and slice labels.
@@ -100,6 +110,20 @@ def gate(results, metric="f1", min_overall=0.80, min_slice=0.70):
 print(gate([{"slice":"easy","f1":1.0},{"slice":"hard","f1":0.5}], min_overall=0.7))
 ```
 
+### Trajectory Level Agent Scorer
+Score response correctness, step validity, and trajectory efficiency separately.
+```python
+def score_trajectory(actual_steps, expected_steps, final_correct):
+    response_score = 1.0 if final_correct else 0.0
+    valid_steps = sum(1 for s in actual_steps if s in {"search", "compute", "verify", "finish"})
+    step_score = valid_steps / max(1, len(actual_steps))
+    trajectory_score = 1.0 if actual_steps == expected_steps else max(0.0, 1 - abs(len(actual_steps) - len(expected_steps)) / len(expected_steps))
+    return {"response": response_score, "step": step_score, "trajectory": trajectory_score}
+
+print(score_trajectory(["search", "search", "search", "finish"], ["search", "finish"], True))
+print(score_trajectory(["search", "finish"], ["search", "finish"], True))
+```
+
 ---
 
 ## 4. Design Decisions & Tradeoffs
@@ -123,6 +147,8 @@ print(gate([{"slice":"easy","f1":1.0},{"slice":"hard","f1":0.5}], min_overall=0.
 - Changing prompt, model, data, and scorer at once, making regressions uninterpretable.
 - Using a judge without bias audits or human calibration.
 - Failing to save per-case artifacts, so failures cannot be debugged.
+- Scoring an agent only at response-level, missing a fragile or redundant trajectory that happened to still land on the right answer this time.
+- Treating "fewer steps is always better" as a universal trajectory rule, when some tasks genuinely need re-planning or multiple verification passes.
 
 ---
 
@@ -200,8 +226,22 @@ The core discipline here is the same one that prevents scientific results from b
 
 *One-liner: define overall and critical-slice thresholds before running the eval, then compare the actual result against those pre-committed bars — clearly passing ships, clearly failing blocks, and a genuinely ambiguous result routes to human review — defining thresholds beforehand is what prevents unconsciously rationalizing a borderline result into a pass just because you already wanted to ship.*
 
+**Q: Why isn't response-level scoring alone sufficient for evaluating a multi-step agent, when it's sufficient for a single-call system?**
+A: A single-call system has exactly one output to judge, so response-level scoring captures everything there is to evaluate. A multi-step agent has an entire *process* leading to that output — and a correct final answer doesn't guarantee that process was sound, just like a wrong final answer doesn't necessarily mean every step along the way was bad.
+
+Concretely: an agent can call the wrong tool, get lucky that the wrong tool's result didn't matter for this particular input, and still land on the correct final answer — response-level scoring would call this a pass, even though the same wrong-tool mistake would produce a wrong answer on a slightly different input. Similarly, an agent can reach the correct answer only after several redundant, repeated tool calls or confused backtracking — response-level scoring sees a pass, but in production this trajectory is slower and more expensive than it should be, a problem that compounds at scale even though no single golden-set example exposes it clearly.
+
+*One-liner: response-level scoring only sees the final output, so it can't distinguish a genuinely sound process from one that got lucky (wrong step, right answer by chance) or an inefficient one (correct answer via a redundant, expensive path) — both of which look identical to a pass/fail check that only inspects the end result.*
+
+**Q: What's the practical difference between step-level and trajectory-level agent evaluation — don't they both look at the intermediate steps?**
+A: Both inspect the steps, but at different granularities and for different kinds of problems. Step-level evaluation looks at each individual step *in isolation*: was this specific tool call well-formed, did it use the right tool for what it was trying to do, independent of what came before or after it in the sequence. It catches a single bad decision — the wrong tool, malformed arguments — regardless of where in the run it happened.
+
+Trajectory-level evaluation looks at the *sequence as a whole*: given that each individual step might even be locally valid on its own, was the overall path taken efficient and sensible? This catches a different class of problem that step-level checks miss by construction — an agent that calls the same valid tool three times redundantly, or backtracks and re-plans repeatedly, has no individually "invalid" step (each call might be perfectly well-formed), but the trajectory as a whole reveals confused or inefficient planning that a step-by-step check, evaluating each step in isolation, has no way to see.
+
+*One-liner: step-level evaluation checks whether each individual action was well-formed and correctly chosen in isolation; trajectory-level evaluation checks whether the full sequence of (possibly individually-valid) steps was actually efficient and sensible as a whole — the second catches problems like redundant repeated calls or confused backtracking that look fine step-by-step but reveal a bad process only when viewed as a complete path.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
-- Code: [[04 Code Snippets/LLM/Golden Dataset Metric Harness]], [[04 Code Snippets/LLM/Eval Slice Gate]]
-- Distilled: [[03 Permanent Notes/A Demo Is Not Proof]], [[03 Permanent Notes/An Eval Harness Is a Product Instrument]]
+- Code: [[04 Code Snippets/LLM/Golden Dataset Metric Harness]], [[04 Code Snippets/LLM/Eval Slice Gate]], [[04 Code Snippets/LLM/Trajectory Level Agent Scorer]]
+- Distilled: [[03 Permanent Notes/A Demo Is Not Proof]], [[03 Permanent Notes/An Eval Harness Is a Product Instrument]], [[03 Permanent Notes/A Right Answer Can Hide A Broken Trajectory]]
 - Upstream: [[02 Literature Notes/LLM Engineering/Prompt Contracts]] · Downstream: [[02 Literature Notes/LLM Engineering/LLM as a Judge]]

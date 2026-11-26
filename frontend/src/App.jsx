@@ -9,6 +9,7 @@ import NotesPage from './pages/NotesPage';
 import NotePage from './pages/NotePage';
 import SearchPage from './pages/SearchPage';
 import DashboardPage from './pages/DashboardPage';
+import ProgressPage from './pages/ProgressPage';
 import AdminPage from './pages/AdminPage';
 import ChatPage from './pages/ChatPage';
 import LoginPage from './pages/LoginPage';
@@ -104,6 +105,7 @@ function App() {
                       <Route path="/notes/:id" element={<NotePage />} />
                       <Route path="/search" element={<SearchPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
+                      <Route path="/progress" element={<ProgressPage />} />
                       <Route path="/admin" element={<AdminPage />} />
                       <Route path="/chat" element={<ChatPage />} />
                     </Routes>

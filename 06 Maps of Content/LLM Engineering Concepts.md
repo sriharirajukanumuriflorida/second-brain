@@ -45,21 +45,22 @@
 - ✅ [[02 Literature Notes/LLM Engineering/Advanced Retrieval]]
 - ✅ [[02 Literature Notes/LLM Engineering/Query Transformation]]
 - ✅ [[02 Literature Notes/LLM Engineering/GraphRAG]]
-- ✅ [[02 Literature Notes/LLM Engineering/Agentic RAG]]
+- ✅ [[02 Literature Notes/LLM Engineering/Agentic RAG]] (+ multi-agent RAG: specialized retrieval agents + synthesis)
 - ✅ [[02 Literature Notes/LLM Engineering/Retrieval Evaluation]]
 - ✅ [[02 Literature Notes/LLM Engineering/Vector Database Landscape]]
 
 ## Domain 5 — Agents
-- ✅ [[02 Literature Notes/LLM Engineering/Tool and Function Calling]]
+- ✅ [[02 Literature Notes/LLM Engineering/Tool and Function Calling]] (+ text-to-SQL / database agent gate)
 - ✅ [[02 Literature Notes/LLM Engineering/Agent Loops and Planning]]
 - ✅ [[02 Literature Notes/LLM Engineering/Agent Memory]]
 - ✅ [[02 Literature Notes/LLM Engineering/Multi-Agent Orchestration]]
+- ✅ [[02 Literature Notes/LLM Engineering/Agentic Workflow Patterns]] — Prompt Chaining / Routing / Parallelization / Evaluator-Optimizer / Orchestrator-Workers taxonomy
 - ✅ [[02 Literature Notes/LLM Engineering/Model Context Protocol]]
 - ✅ [[02 Literature Notes/LLM Engineering/Agent Framework Literacy]]
 - ✅ [[02 Literature Notes/LLM Engineering/Agent Reliability and Cost]]
 
 ## Domain 6 — Evaluation
-- ✅ [[02 Literature Notes/LLM Engineering/Eval Fundamentals]]
+- ✅ [[02 Literature Notes/LLM Engineering/Eval Fundamentals]] (+ response/step/trajectory-level agent evaluation)
 - ✅ [[02 Literature Notes/LLM Engineering/Groundedness and Faithfulness]]
 - ✅ [[02 Literature Notes/LLM Engineering/LLM as a Judge]]
 - ✅ [[02 Literature Notes/LLM Engineering/Online Evaluation]]

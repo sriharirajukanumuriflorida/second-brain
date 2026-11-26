@@ -45,6 +45,9 @@ Run independent read-only calls in parallel; serialize writes.
 ### 5.5 Security
 No raw shell, SQL, or broad credentials; use allowlisted adapters and audit logs.
 
+### 5.6 Text-to-SQL / database agents
+Natural-language-to-SQL is a specific, high-risk instance of tool calling: the model's "arguments" are an entire generated query, not a handful of typed fields, which means the usual argument-validation gate has to do more work. Practical pattern: expose the agent a **schema-introspection tool** (list tables/columns, sample rows) rather than hard-coding the schema into the prompt, so it stays correct as the schema evolves. Generate the query, then validate before execution — parse it, confirm it only touches an allowlisted set of tables/columns, reject anything that isn't a read (`SELECT`) unless writes are explicitly and separately authorized, and run it through a connection with read-only, row-limited credentials regardless of what the validator catches (defense in depth). Return structured results (and the generated SQL itself) to the model as the observation, so a failure is debuggable and a retry can be self-corrected the same way any other tool error is (section 5.3).
+
 ---
 
 ## 3. Implementation
@@ -52,6 +55,7 @@ No raw shell, SQL, or broad credentials; use allowlisted adapters and audit logs
 Assumed stack: stdlib + numpy where useful. Snippets:
 - [[04 Code Snippets/LLM/Validated Function Call Executor]]
 - [[04 Code Snippets/LLM/Structured Tool Error Return]]
+- [[04 Code Snippets/LLM/Allowlisted Text-to-SQL Gate]]
 
 ### Validated Function Call Executor
 Validate args before invoking allowlisted tools
@@ -76,6 +80,27 @@ def safe_run(call):
 print(safe_run({"name":"add","arguments":{"a":"2","b":3}}))
 ```
 
+### Allowlisted Text-to-SQL Gate
+Validate a generated query against an allowlist before execution
+```python
+ALLOWED_TABLES = {"orders", "customers"}
+
+def validate_sql(sql):
+    low = sql.lower()
+    if not low.strip().startswith("select"):
+        return {"ok": False, "error": "non_select_blocked"}
+    touched = {t for t in ALLOWED_TABLES if t in low}
+    if not touched:
+        return {"ok": False, "error": "no_allowlisted_table_referenced"}
+    if any(bad in low for bad in ["drop", "delete", "update", "insert", ";--"]):
+        return {"ok": False, "error": "disallowed_keyword"}
+    return {"ok": True, "tables": sorted(touched)}
+
+print(validate_sql("SELECT * FROM orders WHERE id = 1"))
+print(validate_sql("DROP TABLE customers"))
+print(validate_sql("SELECT * FROM secrets"))
+```
+
 ---
 
 ## 4. Design Decisions & Tradeoffs
@@ -98,6 +123,8 @@ print(safe_run({"name":"add","arguments":{"a":"2","b":3}}))
 - Vague errors.
 - Trusting injected tool output.
 - No audit trail.
+- Hard-coding the DB schema into the prompt instead of exposing a schema-introspection tool, so it silently drifts out of date.
+- Validating generated SQL only by regex/keyword match with no execution-time guardrail (read-only, row-limited credentials) as a second layer.
 
 ---
 
@@ -167,8 +194,15 @@ The general principle: added flexibility (more tools, more model autonomy in cho
 
 *One-liner: choose a simpler, more constrained design (fewer tools, forced rather than free tool choice) whenever the actual task is narrow and well-understood enough not to need the model's full flexibility — added flexibility is a real cost (more failure surface, harder to fully test and audit), so it's only worth taking on when the task genuinely requires it, not built in "just in case."*
 
+**Q: Why does text-to-SQL need a heavier validation gate than a typical typed tool call?**
+A: A typical tool call's arguments are a small set of typed fields (an integer, an enum, a short string) — easy to fully validate against a schema before execution. Text-to-SQL's "argument" is an entire generated query, built from arbitrary natural language, which can express far more than a handful of typed fields ever could: it can reference tables or columns it shouldn't, join across data it has no business touching, or carry a write/delete disguised as what looked like a read request upstream.
+
+Because of that larger surface area, the gate has to check more than "are the types right" — it has to parse the query well enough to confirm which tables and columns it actually touches, reject anything outside an explicit allowlist, and specifically distinguish reads from writes rather than trusting that a model asked to "look something up" only ever generates `SELECT` statements. And because a validator built on string/keyword matching can itself be fooled or have gaps, the execution layer itself should carry its own independent guardrail — read-only, row-limited database credentials — so a validation gap doesn't translate directly into unrestricted database access.
+
+*One-liner: text-to-SQL's "argument" is a whole generated query rather than a few typed fields, so the validation gate has to parse and check table/column allowlists and read-vs-write intent, not just types — and because that parsing-based gate can itself have gaps, the database connection should independently enforce read-only, row-limited access as a second, structural layer of defense.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
-- Code: [[04 Code Snippets/LLM/Validated Function Call Executor]], [[04 Code Snippets/LLM/Structured Tool Error Return]]
-- Distilled: [[03 Permanent Notes/Tool Calling Is a Typed Runtime Boundary]], [[03 Permanent Notes/Tool Results Are Observations Not Truth]]
+- Code: [[04 Code Snippets/LLM/Validated Function Call Executor]], [[04 Code Snippets/LLM/Structured Tool Error Return]], [[04 Code Snippets/LLM/Allowlisted Text-to-SQL Gate]]
+- Distilled: [[03 Permanent Notes/Tool Calling Is a Typed Runtime Boundary]], [[03 Permanent Notes/Tool Results Are Observations Not Truth]], [[03 Permanent Notes/Generated SQL Is Untrusted Input Not a Trusted Query]]
 - Upstream: [[02 Literature Notes/LLM Engineering/Structured Generation]] · [[02 Literature Notes/LLM Engineering/Prompt Contracts]] · [[02 Literature Notes/LLM Engineering/Reasoning Prompt Patterns]] · Downstream: [[02 Literature Notes/LLM Engineering/Agent Reliability and Cost]]

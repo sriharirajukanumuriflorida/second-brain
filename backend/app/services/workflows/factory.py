@@ -11,6 +11,7 @@ from app.services.workflows.knowledge_refresh_workflow import KnowledgeRefreshWo
 from app.services.workflows.technology_radar_workflow import TechnologyRadarWorkflow
 from app.services.workflows.research_gap_workflow import ResearchGapWorkflow
 from app.services.workflows.compaction_workflow import CompactionWorkflow
+from app.services.workflows.quiz_scoring_workflow import QuizScoringWorkflow
 
 
 class WorkflowFactory:
@@ -39,5 +40,7 @@ class WorkflowFactory:
             return SolutionBriefWorkflow(db, llm_provider)
         elif workflow_type == "compaction" or workflow_type == "compaction-wiki":
             return CompactionWorkflow(db, llm_provider)
+        elif workflow_type == "quiz-scoring":
+            return QuizScoringWorkflow(db, llm_provider)
         else:
             raise ValueError(f"Unsupported workflow type: {workflow_type}")

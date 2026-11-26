@@ -8,7 +8,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import init_db
-from app.api import health, sync, status, notes, folders, search, workflows, github, embeddings, auth, monitoring, access, chat
+from app.api import health, sync, status, notes, folders, search, workflows, github, embeddings, auth, monitoring, access, chat, progress, quiz
 from app.utils.security import limiter
 
 # Create FastAPI app
@@ -48,6 +48,8 @@ app.include_router(auth.router, prefix=settings.api_prefix, tags=["Auth"])
 app.include_router(access.router, prefix=settings.api_prefix, tags=["Access"])
 app.include_router(monitoring.router, prefix=settings.api_prefix, tags=["Monitoring"])
 app.include_router(chat.router, prefix=settings.api_prefix, tags=["Chat"])
+app.include_router(progress.router, prefix=settings.api_prefix, tags=["Progress"])
+app.include_router(quiz.router, prefix=settings.api_prefix, tags=["Quiz"])
 
 
 @app.on_event("startup")

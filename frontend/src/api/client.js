@@ -155,4 +155,36 @@ export const getChatAccountUsage = async (llmConfig) => {
   return response.data;
 };
 
+// Progress — per-phase completion + quiz performance tracking.
+export const getProgressSummary = async () => {
+  const response = await api.get('/api/v1/progress/summary');
+  return response.data;
+};
+
+export const setTopicStatus = async (notePath, status) => {
+  const response = await api.post('/api/v1/progress/topic', { note_path: notePath, status });
+  return response.data;
+};
+
+// Quiz — the dashboard-driven drill flow (mentor chat has its own in-conversation flow).
+export const getQuizTopics = async () => {
+  const response = await api.get('/api/v1/quiz/topics');
+  return response.data;
+};
+
+export const getQuizQuestion = async (notePath) => {
+  const response = await api.get('/api/v1/quiz/question', { params: { note_path: notePath } });
+  return response.data;
+};
+
+export const submitQuizAnswer = async (notePath, question, userAnswer, hintsGiven = []) => {
+  const response = await api.post('/api/v1/quiz/submit', {
+    note_path: notePath,
+    question,
+    user_answer: userAnswer,
+    hints_given: hintsGiven,
+  });
+  return response.data;
+};
+
 export default api;

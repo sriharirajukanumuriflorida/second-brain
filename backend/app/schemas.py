@@ -265,3 +265,66 @@ class ChatAccountUsageResponse(BaseModel):
     """Account-level usage payload from LLM provider APIs."""
     provider: str
     usage: Dict[str, Any]
+
+
+# ── Progress & Quiz ────────────────────────────────────────────────────────────
+
+class TopicStatusUpdate(BaseModel):
+    """Mark a topic's completion status."""
+    note_path: str
+    status: str = Field(..., pattern="^(not_started|in_progress|done)$")
+
+
+class TopicProgressEntry(BaseModel):
+    """A single topic's status + latest quiz performance, for the progress page."""
+    note_path: str
+    label: str
+    status: str
+    completed_at: Optional[datetime] = None
+    attempt_count: int = 0
+    average_score: Optional[float] = None
+    last_score: Optional[int] = None
+
+
+class PhaseProgress(BaseModel):
+    """Completion counts for one phase of the roadmap."""
+    phase: str
+    total_topics: int
+    done_topics: int
+    topics: List[TopicProgressEntry] = []
+
+
+class ProgressSummaryResponse(BaseModel):
+    """Full progress summary across every phase."""
+    phases: List[PhaseProgress]
+    total_topics: int
+    done_topics: int
+    weak_topics: List[TopicProgressEntry] = []  # low average score or no attempts yet
+
+
+class QuizTopicsResponse(BaseModel):
+    """List of quizzable topics (note_path + label), for picking what to drill."""
+    topics: List[Dict[str, str]]
+
+
+class QuizQuestionResponse(BaseModel):
+    """A single quiz question — never includes the reference answer."""
+    note_path: str
+    question: str
+
+
+class QuizSubmitRequest(BaseModel):
+    """A user's attempted answer to a quiz question."""
+    note_path: str
+    question: str
+    user_answer: str
+    hints_given: List[str] = []
+
+
+class QuizResultResponse(BaseModel):
+    """Scored result of a quiz answer."""
+    score: int
+    feedback: str
+    reference_answer: str
+    hints_given: int = 0
+    reinforcement: Optional[str] = None  # the note's own one-liner, only when score < 70

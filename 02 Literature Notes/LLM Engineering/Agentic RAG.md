@@ -53,6 +53,11 @@ Corrective RAG adds a retrieval evaluator. If evidence is weak, the system rewri
 ### 4.5 Budgets and stopping
 Agentic RAG can explode latency and cost. Define max tool calls, max candidate chunks, max rewrites, and stop conditions: sufficient evidence, contradiction requiring clarification/refusal, or budget exhausted. The final answer still follows the RAG citation/refusal contract.
 
+### 4.6 Multi-agent RAG
+Single-agent agentic RAG (4.1–4.5) has one controller deciding what to retrieve next. Multi-agent RAG instead specializes retrieval itself: several retrieval agents, each scoped to one source or domain (e.g., a product-docs agent, a support-tickets agent, a web-search agent), run their own retrieve-grade-rewrite loop independently, and a separate **synthesis agent** combines their individual findings into one answer. This is the Routing/Parallelization distinction from [[02 Literature Notes/LLM Engineering/Agentic Workflow Patterns]] applied to retrieval specifically: each retrieval agent is a sectioned subtask (its own source), and the synthesis agent plays the same role an aggregation step plays in Parallelization.
+
+Use multi-agent RAG when sources are genuinely heterogeneous enough that one retrieval agent with one tool API can't serve all of them well (different schemas, different query styles, different evidence-grading rules per source) — not as a default upgrade from single-agent agentic RAG. The synthesis agent inherits the same grounding contract as single-agent RAG (section 4.5's "final answer" rule): it may only cite documents its retrieval agents actually returned, never one retrieval agent's summary standing in for another's unretrieved evidence, and it must be able to flag when two retrieval agents' evidence conflicts rather than silently picking one.
+
 ---
 
 ## 3. Implementation
@@ -60,6 +65,7 @@ Agentic RAG can explode latency and cost. Define max tool calls, max candidate c
 Assumed stack: stdlib + numpy. Snippets implement a deterministic agent loop and a corrective evidence gate. Snippets:
 - [[04 Code Snippets/LLM/Iterative Retrieval Agent Loop]]
 - [[04 Code Snippets/LLM/Corrective RAG Retrieval Gate]]
+- [[04 Code Snippets/LLM/Multi-Agent RAG Synthesis]]
 
 ### Iterative Retrieval Agent Loop
 A small retrieve-grade-rewrite loop with max tool-call budget and cited final answer.
@@ -99,6 +105,28 @@ for scores in [[0.8,0.7,0.2], [0.7,0.3], [0.4,0.3], []]:
     print(scores, "->", retrieval_gate(scores))
 ```
 
+### Multi-Agent RAG Synthesis
+Independent retrieval agents per source; a synthesis step flags conflicts rather than silently picking one.
+```python
+def retrieval_agent(source, query):
+    FAKE_SOURCES = {
+        "docs": "The API rate limit is 100 req/min.",
+        "tickets": "Customer reported rate limit as 50 req/min after a recent change.",
+    }
+    return {"source": source, "evidence": FAKE_SOURCES.get(source, ""), "query": query}
+
+def synthesize(results):
+    nonempty = [r for r in results if r["evidence"]]
+    if len(nonempty) >= 2 and nonempty[0]["evidence"] != nonempty[1]["evidence"]:
+        return {"status": "conflict", "evidence": nonempty}
+    if nonempty:
+        return {"status": "answer", "evidence": nonempty}
+    return {"status": "refuse"}
+
+results = [retrieval_agent(s, "rate limit") for s in ["docs", "tickets"]]
+print(synthesize(results))
+```
+
 ---
 
 ## 4. Design Decisions & Tradeoffs
@@ -122,6 +150,8 @@ for scores in [[0.8,0.7,0.2], [0.7,0.3], [0.4,0.3], []]:
 - Trusting model self-grades without retrieval/citation validation.
 - Using agentic RAG for simple FAQ where one-shot retrieval is cheaper and safer.
 - Not logging tool calls, making failures impossible to debug.
+- Splitting retrieval into multiple source-specific agents when one agent with one tool API would have served all sources equally well (added coordination cost for no real benefit).
+- Letting the synthesis agent silently pick one retrieval agent's evidence over another's without surfacing the conflict.
 
 ---
 
@@ -191,8 +221,22 @@ So the rule carries forward from standard RAG's citation contract unchanged: the
 
 *One-liner: the final answer can only cite real documents that actually came back from genuine retrieval tool calls — never the agent's own internal reasoning, planning, or self-critique, since that's process, not verified evidence, and letting it stand in for real evidence breaks RAG's core grounding guarantee.*
 
+**Q: When does multi-agent RAG (multiple specialized retrieval agents + a synthesis agent) actually earn its cost over a single agentic-RAG loop with a broader tool API?**
+A: The same test as any multi-agent decision in [[02 Literature Notes/LLM Engineering/Multi-Agent Orchestration]] applies here specifically to retrieval: it earns its cost when the sources being searched are genuinely different enough — different schemas, different query conventions, different rules for what counts as "strong evidence" in that source — that one retrieval agent with one tool API and one evidence-grading policy can't actually serve all of them well. A single well-built retrieval agent with a flexible enough tool API is often sufficient, and splitting into multiple agents purely because there are multiple sources (without this genuine heterogeneity) just adds coordination overhead — more handoffs, more synthesis complexity — without a corresponding quality benefit.
+
+It doesn't earn its cost just because "there are several sources" — if those sources share a similar enough structure and query pattern that one retrieval agent's tool and grading logic already handles all of them well, multi-agent RAG is solving a specialization problem that doesn't actually exist here.
+
+*One-liner: multi-agent RAG earns its cost when sources are genuinely heterogeneous enough (different schemas, query styles, evidence-grading rules) that one retrieval agent can't serve them all well — not merely because there happen to be multiple sources, which a single agent with a flexible tool API can often already handle.*
+
+**Q: What must the synthesis agent in multi-agent RAG do when two retrieval agents return conflicting evidence?**
+A: It must surface the conflict explicitly rather than silently choosing one retrieval agent's evidence over the other's — picking one side without flagging the disagreement would mean fabricating confidence the system doesn't actually have, which breaks the same grounding contract covered in section 4's "final answer" rule for single-agent agentic RAG.
+
+Concretely, the synthesis step needs to compare what each retrieval agent actually found, and when they genuinely disagree on a material fact, the final answer should say so — citing both pieces of conflicting evidence and their sources — rather than quietly resolving the disagreement by preferring one retrieval agent arbitrarily (by order, by which agent happened to respond first, or by which source "sounds more authoritative" without actual justification). This mirrors the single-agent evidence grader's job of detecting internal contradiction (section 4's evidence-grading question) — just applied across agents instead of across retrieved chunks within one agent's search.
+
+*One-liner: the synthesis agent must detect and explicitly surface genuine conflicts between retrieval agents' evidence rather than silently preferring one — fabricating resolved confidence where the retrieval agents actually disagreed breaks the same grounding guarantee that governs single-agent agentic RAG's final-answer contract.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/LLM Engineering Concepts]]
-- Code: [[04 Code Snippets/LLM/Iterative Retrieval Agent Loop]], [[04 Code Snippets/LLM/Corrective RAG Retrieval Gate]]
-- Distilled: [[03 Permanent Notes/Agentic RAG Makes Retrieval an Adaptive Tool Call]], [[03 Permanent Notes/Corrective RAG Is an Evidence Quality Gate]]
+- Code: [[04 Code Snippets/LLM/Iterative Retrieval Agent Loop]], [[04 Code Snippets/LLM/Corrective RAG Retrieval Gate]], [[04 Code Snippets/LLM/Multi-Agent RAG Synthesis]]
+- Distilled: [[03 Permanent Notes/Agentic RAG Makes Retrieval an Adaptive Tool Call]], [[03 Permanent Notes/Corrective RAG Is an Evidence Quality Gate]], [[03 Permanent Notes/Multi-Agent RAG Specializes Retrieval Not Just Generation]]
 - Upstream: [[02 Literature Notes/LLM Engineering/GraphRAG]] · Downstream: [[02 Literature Notes/LLM Engineering/Retrieval Evaluation]]

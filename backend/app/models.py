@@ -113,6 +113,10 @@ class ChatSession(Base):
     id = Column(String, primary_key=True, index=True)  # UUID set by caller
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # null for shared-link visitors
     summary = Column(Text, nullable=True)  # compressed history for old turns
+    # JSON: {note_path, stage: "awaiting_consent"|"awaiting_answer", question,
+    # reference_answer, one_liner, assist_count, hints_given: []}. Set while an
+    # in-chat quiz offer/question is outstanding; null otherwise.
+    pending_quiz_state = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
@@ -173,3 +177,36 @@ class AccessToken(Base):
     claimed_at = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)  # set at claim
     revoked = Column(Boolean, default=False, nullable=False)
+
+
+class TopicProgress(Base):
+    """Per-user completion status for a vault topic (keyed by Note.path)."""
+
+    __tablename__ = "topic_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    note_path = Column(String, index=True, nullable=False)  # matches Note.path, not a hard FK
+    status = Column(String, default="not_started")  # not_started | in_progress | done
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+
+class QuizAttempt(Base):
+    """A single scored quiz answer for a vault topic (keyed by Note.path)."""
+
+    __tablename__ = "quiz_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    note_path = Column(String, index=True, nullable=False)
+    question = Column(Text, nullable=False)
+    reference_answer = Column(Text, nullable=False)  # the note's own "A:" text
+    user_answer = Column(Text, nullable=False)
+    score = Column(Integer, nullable=False)  # 0-100, from LLM judge; already reflects hint-assistance
+    feedback = Column(Text, nullable=True)  # gap explanation from judge
+    hints_given = Column(Integer, default=0)  # count only — hint text already shaped the score via the judge call
+    model = Column(String, nullable=True)
+    input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

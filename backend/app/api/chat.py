@@ -19,6 +19,7 @@ from app.schemas import (
 from app.models import ChatSession, ChatMessage
 from app.services.llm.factory import LLMProviderFactory
 from app.services.workflows.mentor_chat_workflow import MentorChatWorkflow
+from app.services.chat_quiz_flow import handle_turn as handle_quiz_turn
 from app.services.cost_service import CostService
 from app.config import settings
 from app.utils.auth import require_read_access, Principal
@@ -240,13 +241,22 @@ async def chat(
         # Convert history to plain dicts for the workflow
         history = [{"role": m.role, "content": m.content} for m in request.history]
 
-        # Execute mentor chat workflow
-        workflow = MentorChatWorkflow(db, llm_provider)
-        result = await workflow.execute({
-            "message": request.message,
-            "history": history,
-            "enable_web_search": request.allow_web_search,
-        })
+        # In-chat quiz flow (completion signal -> offer -> question -> score)
+        # only applies to a real logged-in user — a shared read-only link
+        # visitor has no account to write TopicProgress/QuizAttempt against,
+        # so it's a structural no-op for them, same boundary as any other write.
+        result = None
+        if principal.user:
+            result = await handle_quiz_turn(db, session, principal.user.id, request.message)
+
+        if result is None:
+            # Execute mentor chat workflow
+            workflow = MentorChatWorkflow(db, llm_provider)
+            result = await workflow.execute({
+                "message": request.message,
+                "history": history,
+                "enable_web_search": request.allow_web_search,
+            })
 
         # Persist user + assistant messages
         db.add(ChatMessage(
@@ -267,8 +277,10 @@ async def chat(
         ))
         db.commit()
 
-        # Track cost (skip if user supplied their own key — cost is theirs)
-        if not request.llm_config and not result["cached"]:
+        # Track cost (skip if user supplied their own key — cost is theirs; skip
+        # scripted quiz-flow replies that made no LLM call at all, e.g. the
+        # completion-offer message, which have model=None and zero tokens)
+        if not request.llm_config and not result["cached"] and result["model"]:
             CostService(db).record_cost(
                 workflow="mentor-chat",
                 input_tokens=result["input_tokens"],

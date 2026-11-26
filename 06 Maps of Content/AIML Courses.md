@@ -10,6 +10,7 @@
 - [[02 Literature Notes/Courses/Extra AIML Resources]]
 
 ## Master Synthesis Map
+- [[06 Maps of Content/Learning Progress Dashboard]] — one checklist for the entire 24-week roadmap in prerequisite order; start here to track what's done
 - [[06 Maps of Content/FDE Engagement Architecture — Master Map]] — cross-cutting map that ties the full 24-week FDE roadmap into one engagement flow (start here for review / interview prep)
 - [[06 Maps of Content/AI-ML Topics Covered — Chronological]] — every AI/ML topic in the vault, flattened into one chronological learning-order list with plain explanations
 
