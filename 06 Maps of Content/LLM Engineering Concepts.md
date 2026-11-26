@@ -19,6 +19,7 @@
 ---
 
 ## Domain 1 — Data Representation
+- ✅ [[02 Literature Notes/LLM Engineering/Classical NLP Fundamentals]] — pre-transformer foundations (stemming, lemmatization, POS tagging, parsing)
 - ✅ [[02 Literature Notes/LLM Engineering/Tokenization]]
 - ✅ [[02 Literature Notes/LLM Engineering/Embeddings]]
 - ✅ [[02 Literature Notes/LLM Engineering/Embedding Model Selection]]

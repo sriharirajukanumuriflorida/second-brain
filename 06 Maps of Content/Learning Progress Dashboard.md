@@ -70,8 +70,9 @@
 - [ ] 4. Ensemble Learning
 - [ ] 5. Unsupervised Learning
 - [ ] 6. Recommendation Systems
+- [ ] 7. Reinforcement Learning
 
-**Phase 3 progress: 0/6**
+**Phase 3 progress: 0/7**
 
 ---
 
@@ -109,6 +110,7 @@
 > [[06 Maps of Content/LLM Engineering Concepts]] · Stage 5 in the Chronological map · the deepest track in the vault
 
 ### Domain 1 — Data Representation
+- [ ] Classical NLP Fundamentals
 - [ ] Tokenization
 - [ ] Embeddings
 - [ ] Embedding Model Selection
@@ -184,7 +186,7 @@
 ### Domain 11 — Cross-cutting
 - [ ] Framework Ecosystem Literacy
 
-**Phase 6 progress: 0/50**
+**Phase 6 progress: 0/51**
 
 ---
 
@@ -232,13 +234,13 @@
 | 0 — Programming Foundations | 4 | 0 |
 | 1 — Software Engineering | 8 | 0 |
 | 2 — Applied Data Science | 9 | 0 |
-| 3 — Classical ML | 6 | 0 |
+| 3 — Classical ML | 7 | 0 |
 | 4 — Deep Learning | 12 | 0 |
 | 5 — Generative AI | 2 | 0 |
-| 6 — LLM Engineering | 50 | 0 |
+| 6 — LLM Engineering | 51 | 0 |
 | 7 — AI Architecture | 8 | 0 |
 | 8 — FDE Delivery | 4 | 0 |
-| **Total** | **103** | **0** |
+| **Total** | **105** | **0** |
 
 ## Links
 - Parent MOC: [[06 Maps of Content/AIML Courses]]

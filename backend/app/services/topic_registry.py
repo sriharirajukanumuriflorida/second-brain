@@ -82,6 +82,8 @@ TOPICS: List[Topic] = [
      "note_path": "02 Literature Notes/Courses/Machine Learning - Lesson 06 Unsupervised Learning.md"},
     {"phase": "Phase 3 — Classical Machine Learning", "label": "Recommendation Systems",
      "note_path": "02 Literature Notes/Courses/Machine Learning - Lesson 07 Recommendation Systems.md"},
+    {"phase": "Phase 3 — Classical Machine Learning", "label": "Reinforcement Learning",
+     "note_path": "02 Literature Notes/Courses/Machine Learning - Lesson 08 Reinforcement Learning.md"},
 
     # Phase 4 — Deep Learning
     {"phase": "Phase 4 — Deep Learning", "label": "Introduction to Deep Learning",
@@ -116,6 +118,8 @@ TOPICS: List[Topic] = [
      "note_path": "02 Literature Notes/Courses/Generative AI - Lesson 02 Working with GPTs.md"},
 
     # Phase 6 — LLM Engineering
+    {"phase": "Phase 6 — LLM Engineering", "label": "Classical NLP Fundamentals",
+     "note_path": "02 Literature Notes/LLM Engineering/Classical NLP Fundamentals.md"},
     {"phase": "Phase 6 — LLM Engineering", "label": "Tokenization",
      "note_path": "02 Literature Notes/LLM Engineering/Tokenization.md"},
     {"phase": "Phase 6 — LLM Engineering", "label": "Embeddings",

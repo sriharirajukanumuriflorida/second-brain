@@ -231,6 +231,44 @@ Concretely: an O(log n) algorithm like binary search requires sorted data (the u
 
 *One-liner: Big-O deliberately ignores constant per-operation overhead because it only matters asymptotically "at large enough n" — but at genuinely small n, that ignored constant can dominate actual wall-clock time more than the growth rate does, so a "worse" O(n) algorithm with cheap, simple per-step work can genuinely outperform a "better" O(log n) algorithm whose per-step overhead (plus, for binary search, an upfront sort) hasn't been amortized away yet by a large enough input.*
 
+## 10. Live-Coding Interview Questions
+
+Everything above is explain-the-concept depth; this section is the other real interview format — write working code, live, under time pressure, then defend its complexity. These two are classic FAANG-style screening questions precisely because they look trivial at first glance but reward (or expose the lack of) real data-structure instinct.
+
+**Q: Write a function `find_bigrams` that takes a string and returns a list of all its bigrams (consecutive word pairs).**
+A: A bigram here means every pair of adjacent words in the sentence — "the quick brown fox" has bigrams ("the","quick"), ("quick","brown"), ("brown","fox"). The direct approach: split the string into words, then walk through consecutive index pairs.
+
+```python
+def find_bigrams(s):
+    words = s.split()
+    return [(words[i], words[i + 1]) for i in range(len(words) - 1)]
+
+print(find_bigrams("the quick brown fox"))
+# [('the', 'quick'), ('quick', 'brown'), ('brown', 'fox')]
+```
+
+The interview-relevant detail isn't the split/loop itself — it's correctly handling the boundary: `range(len(words) - 1)` deliberately stops one short of the last word, since the last word has no following word to pair with. An off-by-one here (`range(len(words))`) would throw an `IndexError` on the final iteration — exactly the kind of boundary bug a live-coding interviewer is watching for, more than whether you know what a bigram is.
+
+*One-liner: a bigram-finder is really a test of boundary handling, not vocabulary — the entire question hinges on correctly stopping the loop one index short of the last word, since that word has nothing left to pair with.*
+
+**Q: Given two strings A and B, write a function `can_shift` that returns whether A can be shifted (rotated) some number of places to produce B — without actually generating and checking every possible rotation.**
+A: The brute-force approach — generate every rotation of A (shift by 1, by 2, ... by len(A)-1) and check if any equals B — works, but it's doing unnecessary, repeated string-building work and is the "I can solve it, but slowly and without the trick" answer. The trick: any rotation of A is, by definition, a substring of `A + A` (A concatenated with itself) — concatenating A with itself lays out every possible rotation's starting point, back to back, in one string, so checking "is B a rotation of A" reduces to "is B a substring of A+A."
+
+```python
+def can_shift(a, b):
+    if len(a) != len(b):
+        return False
+    return b in (a + a)
+
+print(can_shift("waterbottle", "erbottlewat"))  # True
+print(can_shift("hello", "llohe"))               # True
+print(can_shift("hello", "world"))               # False
+```
+
+The length check at the top isn't an edge-case afterthought — it's load-bearing: without it, a shorter string could spuriously test as "contained in" `a + a` purely by accident of character overlap, without actually being a genuine rotation of `a` at all (e.g. `can_shift("abc", "ab")` must return `False`, and skipping the length check risks a false positive if `"ab"` happens to appear inside `"abcabc"` — which it does, incorrectly). This problem is a good interview signal specifically because the "obviously correct but slow" brute-force solution and the "one-line but requires a real insight" solution are both fully valid things to say out loud — talking through *why* `A+A` captures every rotation, not just stating the trick, is what actually demonstrates understanding rather than memorized recall of the pattern.
+
+*One-liner: checking whether B is a rotation of A reduces to checking whether B is a substring of A+A, since concatenating A with itself lays out every possible rotation point in one string — but the length-equality check isn't optional cleanup, it's what prevents a spurious substring match from masquerading as a genuine rotation.*
+
 ## 8. Links
 - Domain MOC: [[06 Maps of Content/Software Engineering Concepts]]
 - Code: [[04 Code Snippets/Software Engineering/SE Week 03 Graph BFS DFS Traversal]], [[04 Code Snippets/Software Engineering/SE Week 03 Binary Search Sort and Hash Index]]

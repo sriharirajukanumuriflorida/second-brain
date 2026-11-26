@@ -11,6 +11,7 @@
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 05 Ensemble Learning]]
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 06 Unsupervised Learning]]
 - [[02 Literature Notes/Courses/Machine Learning - Lesson 07 Recommendation Systems]]
+- [[02 Literature Notes/Courses/Machine Learning - Lesson 08 Reinforcement Learning]] — closes the gap left by Lesson 02 naming RL as one of the three ML paradigms with no dedicated lesson
 
 ## Suggested Reading Order
 1. Introduction to Machine Learning
@@ -19,6 +20,7 @@
 4. Ensemble Learning
 5. Unsupervised Learning
 6. Recommendation Systems
+7. Reinforcement Learning
 
 ## Suggested Permanent Notes to Distill
 - Supervised vs unsupervised learning
