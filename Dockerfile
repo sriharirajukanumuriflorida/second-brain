@@ -14,7 +14,6 @@ RUN pip install --upgrade pip && \
 
 # Copy app code
 COPY backend/ ./backend/
-COPY .env* ./
 
 # Set working directory and run the app
 WORKDIR /app/backend

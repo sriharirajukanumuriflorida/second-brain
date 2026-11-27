@@ -8,11 +8,17 @@ from app.database import get_db
 from app.services.auth.session_service import SessionService
 from app.services.auth.access_service import AccessTokenService
 from app.models import User
+from app.config import settings
 
 security = HTTPBearer()
 
 # Name of the HTTP-only cookie holding a claimed read-only access binding.
 ACCESS_COOKIE_NAME = "fde_access"
+
+
+def is_approved(user: User) -> bool:
+    """A GitHub login alone is not authorization: admins or allowlisted IDs only."""
+    return user.role == "admin" or str(user.github_id) in settings.allowed_github_ids_set
 
 
 def get_current_user(
@@ -33,6 +39,12 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
+        )
+
+    if not is_approved(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not approved for access"
         )
 
     return user
@@ -76,7 +88,7 @@ def require_read_access(
     if auth_header.startswith("Bearer "):
         token = auth_header[len("Bearer "):]
         user = SessionService(db).get_user_by_session(token)
-        if user and user.is_active:
+        if user and user.is_active and is_approved(user):
             return Principal("user", user.role, user)
 
         access = AccessTokenService(db).validate_token(token)

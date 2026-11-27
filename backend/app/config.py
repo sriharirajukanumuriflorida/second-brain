@@ -78,6 +78,14 @@ class Settings(BaseSettings):
     # Set a strong random value in .env / Render. Empty disables generation.
     admin_secret: str = ""
 
+    # Comma-separated GitHub numeric user IDs allowed to log in. Empty means no
+    # GitHub login is accepted (fail closed). Existing admin users always pass.
+    allowed_github_ids: str = ""
+
+    @property
+    def allowed_github_ids_set(self) -> set[str]:
+        return {i.strip() for i in self.allowed_github_ids.split(",") if i.strip()}
+
     # Whether access cookies require HTTPS (set true in production).
     cookie_secure: bool = False
 

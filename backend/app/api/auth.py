@@ -8,11 +8,13 @@ from app.database import get_db
 from app.services.auth.oauth_service import GitHubOAuthService
 from app.services.auth.session_service import SessionService
 from app.services.auth.user_service import UserService
+from app.services.auth.oauth_state import create_state, verify_state
+from app.config import settings
+from app.utils.logger import log_event
 from app.utils.auth import get_current_user
 from app.models import User
 from pydantic import BaseModel
 from typing import Optional
-import secrets
 
 security = HTTPBearer()
 
@@ -39,7 +41,7 @@ class UserResponse(BaseModel):
 async def github_login():
     """Get GitHub OAuth login URL."""
     oauth_service = GitHubOAuthService()
-    state = secrets.token_urlsafe(16)
+    state = create_state()
     auth_url = oauth_service.get_authorization_url(state)
     
     return {
@@ -51,6 +53,9 @@ async def github_login():
 @router.post("/auth/github/callback")
 async def github_callback(code: str, state: str, db: Session = Depends(get_db)):
     """Handle GitHub OAuth callback."""
+    if not verify_state(state):
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
     try:
         oauth_service = GitHubOAuthService()
         
@@ -61,8 +66,15 @@ async def github_callback(code: str, state: str, db: Session = Depends(get_db)):
         # Get user info
         user_info = oauth_service.get_user_info(access_token)
         
-        # Get or create user
+        # Reject before creating any account or session
+        github_id = str(user_info.get("id"))
         user_service = UserService(db)
+        existing = db.query(User).filter(User.github_id == github_id).first()
+        if github_id not in settings.allowed_github_ids_set and not (existing and existing.role == "admin"):
+            log_event(db, "auth.login_rejected", {"github_id": github_id, "username": user_info.get("login")})
+            raise HTTPException(status_code=403, detail="This GitHub account is not approved for access")
+
+        # Get or create user
         user = user_service.get_or_create_user(
             github_id=str(user_info.get("id")),
             username=user_info.get("login"),
@@ -85,6 +97,8 @@ async def github_callback(code: str, state: str, db: Session = Depends(get_db)):
             }
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

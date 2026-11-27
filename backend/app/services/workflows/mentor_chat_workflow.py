@@ -5,7 +5,6 @@ Orchestrates:
   1. Hybrid-search vault for relevant notes (TokenBudgetService.select_context)
   2. Compress old history (TokenBudgetService.summarize_history)
   3. Route to cheap/powerful model (TokenBudgetService.route_model)
-  4. Check 1h reply cache (TokenBudgetService.get_cache)
   5. Assemble system prompt + vault context + history + user message
   6. Call LLM with native web_search tool enabled
   7. Return reply + source_notes + web_sources
@@ -39,28 +38,14 @@ class MentorChatWorkflow(BaseWorkflow):
         # 1. Search vault for relevant notes
         raw_results = self.search_svc.search(query=message, limit=10)
         # Attach content from the Note objects for context trimming
-        note_paths = [r["path"] for r in raw_results]
         notes_for_budget = raw_results  # already have title, path, score
 
         # 2. Trim context to token budget
         selected = self.budget_svc.select_context(notes_for_budget, max_tokens=2000, min_score=0.6)
         source_notes = [n["path"] for n in selected]
 
-        # 3. Check reply cache
-        cached = self.budget_svc.get_cache(message, note_paths)
-        if cached:
-            log_event(self.db, "chat.cache_hit", {"query": message[:80]})
-            return {
-                "reply": cached["reply"],
-                "source_notes": cached["source_notes"],
-                "web_sources": cached["web_sources"],
-                "model": self.llm_provider.get_model_name(),
-                "provider": self.llm_provider.get_provider_name(),
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "estimated_cost_usd": 0.0,
-                "cached": True,
-            }
+        # Reply cache intentionally disabled: its key ignored user, history and
+        # model, so replies could leak across conversations.
 
         # 4. Optionally route to cheaper model for simple queries
         provider_name = self.llm_provider.get_provider_name()
@@ -104,12 +89,6 @@ class MentorChatWorkflow(BaseWorkflow):
             # Restore original model
             if original_model:
                 self.llm_provider.model = original_model
-
-        # 9. Store in cache
-        self.budget_svc.set_cache(
-            message, note_paths,
-            response.content, source_notes, response.web_sources,
-        )
 
         log_event(self.db, "chat.completed", {
             "input_tokens": response.input_tokens,
