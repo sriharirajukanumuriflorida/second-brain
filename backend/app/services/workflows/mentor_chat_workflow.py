@@ -10,16 +10,21 @@ Orchestrates:
   7. Return reply + source_notes + web_sources
 """
 import json
+import re
 from typing import Dict, Any, List
 
 from sqlalchemy.orm import Session
 
+from app.models import EmbeddingChunk
 from app.services.workflows.base import BaseWorkflow
 from app.services.llm.base import LLMMessage
 from app.services.search.hybrid_search import HybridSearchService
 from app.services.token_budget import TokenBudgetService
 from app.services.prompts.mentor_chat import MENTOR_SYSTEM_PROMPT, MENTOR_USER_TEMPLATE
 from app.utils.logger import log_event
+
+
+MIN_CONTEXT_SCORE = 0.3
 
 
 class MentorChatWorkflow(BaseWorkflow):
@@ -36,12 +41,12 @@ class MentorChatWorkflow(BaseWorkflow):
         enable_web_search: bool = context.get("enable_web_search", True)
 
         # 1. Search vault for relevant notes
-        raw_results = self.search_svc.search(query=message, limit=10)
-        # Attach content from the Note objects for context trimming
-        notes_for_budget = raw_results  # already have title, path, score
+        raw_results = self._retrieve(message, context.get("query_embedding"))
+        self._attach_content(raw_results, message)
 
-        # 2. Trim context to token budget
-        selected = self.budget_svc.select_context(notes_for_budget, max_tokens=2000, min_score=0.6)
+        # 2. Trim context to token budget. Blended semantic scores top out near
+        # 0.5, so the floor is low; tune it against real questions.
+        selected = self.budget_svc.select_context(raw_results, max_tokens=2000, min_score=MIN_CONTEXT_SCORE)
         source_notes = [n["path"] for n in selected]
 
         # Reply cache intentionally disabled: its key ignored user, history and
@@ -109,6 +114,38 @@ class MentorChatWorkflow(BaseWorkflow):
             "estimated_cost_usd": response.estimated_cost_usd,
             "cached": False,
         }
+
+    def _retrieve(self, message: str, query_embedding) -> List[dict]:
+        """Whole-message search first. Keyword search substring-matches the whole
+        query, so a natural-language question rarely hits; when nothing comes
+        back, retry per significant term (a keyword-only fallback)."""
+        results = self.search_svc.search(query=message, limit=10, query_embedding=query_embedding)
+        if results:
+            return results
+        merged: Dict[int, dict] = {}
+        for term in list(dict.fromkeys(re.findall(r"\w{4,}", message.lower())))[:6]:
+            for row in self.search_svc.search(query=term, limit=10):
+                merged.setdefault(row["id"], row)
+        return sorted(merged.values(), key=lambda r: r["score"], reverse=True)[:10]
+
+    def _attach_content(self, notes: List[dict], query: str, max_chunks: int = 2) -> None:
+        """Put the note's most query-relevant chunk text on each result so the
+        model sees excerpts, not just titles. Notes without chunks stay title-only."""
+        terms = set(re.findall(r"\w{4,}", query.lower()))
+        for note in notes:
+            chunks = (
+                self.db.query(EmbeddingChunk)
+                .filter(EmbeddingChunk.note_id == note["id"])
+                .order_by(EmbeddingChunk.chunk_index)
+                .all()
+            )
+            if not chunks:
+                continue
+            ranked = sorted(
+                chunks,
+                key=lambda c: (-len(terms & set(re.findall(r"\w{4,}", c.content.lower()))), c.chunk_index),
+            )
+            note["content"] = "\n…\n".join(c.content for c in ranked[:max_chunks])
 
     def _format_vault_context(self, notes: List[dict]) -> str:
         if not notes:
