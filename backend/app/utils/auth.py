@@ -68,10 +68,12 @@ class Principal:
     get_current_user (which access visitors can't satisfy), so a readonly
     visitor is structurally unable to reach writes.
     """
-    def __init__(self, kind: str, role: str, user: User = None):
+    def __init__(self, kind: str, role: str, user: User = None, ident: str = ""):
         self.kind = kind
         self.role = role
         self.user = user
+        # Stable identity for rate limiting.
+        self.key = f"user:{user.id}" if user else f"access:{ident}"
 
 
 def require_read_access(
@@ -93,13 +95,13 @@ def require_read_access(
 
         access = AccessTokenService(db).validate_token(token)
         if access:
-            return Principal("access", access.role)
+            return Principal("access", access.role, ident=str(access.id))
 
     # 2. Read-only access cookie (shared link visitor)
     binding = request.cookies.get(ACCESS_COOKIE_NAME)
     access = AccessTokenService(db).validate_binding(binding) if binding else None
     if access:
-        return Principal("access", access.role)
+        return Principal("access", access.role, ident=str(access.id))
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

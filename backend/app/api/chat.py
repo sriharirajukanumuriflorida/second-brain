@@ -21,9 +21,11 @@ from app.services.llm.factory import LLMProviderFactory
 from app.services.workflows.mentor_chat_workflow import MentorChatWorkflow
 from app.services.chat_quiz_flow import handle_turn as handle_quiz_turn
 from app.services.cost_service import CostService
+from app.services.embeddings.query_embedding import embed_query
 from app.config import settings
 from app.utils.auth import require_read_access, Principal
 from app.utils.logger import log_event
+from app.utils.rate_limit import check_rate_limit
 
 router = APIRouter()
 
@@ -212,6 +214,12 @@ async def chat(
     An optional `llm_config` block allows users to supply their own provider/key/model.
     When absent the server's configured LLM credentials are used.
     """
+    check_rate_limit(f"chat:{principal.key}", settings.rate_limit_per_minute, 60)
+    if not request.llm_config:
+        daily = (settings.daily_server_chat_limit_user if principal.user
+                 else settings.daily_server_chat_limit_visitor)
+        check_rate_limit(f"chat-daily:{principal.key}", daily, 86400)
+
     try:
         # Resolve LLM credentials: user-supplied override → server defaults
         if request.llm_config:
@@ -264,6 +272,7 @@ async def chat(
                 "message": request.message,
                 "history": history,
                 "enable_web_search": request.allow_web_search,
+                "query_embedding": await embed_query(request.message),
             })
 
         # Persist user + assistant messages

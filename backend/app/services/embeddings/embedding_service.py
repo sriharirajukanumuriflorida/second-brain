@@ -42,13 +42,6 @@ class EmbeddingService:
         try:
             log_event(self.db, "embedding.started", {"note_id": note.id, "path": note.path})
 
-            if replace_existing:
-                deleted = self.db.query(EmbeddingChunk).filter(
-                    EmbeddingChunk.note_id == note.id
-                ).delete()
-                if deleted:
-                    self.db.commit()
-
             # Prepare metadata
             metadata = {
                 "note_id": note.id,
@@ -64,6 +57,13 @@ class EmbeddingService:
             # Generate embeddings for chunks
             chunk_texts = [chunk["content"] for chunk in chunks]
             embeddings = await self.embedding_provider.generate_embeddings(chunk_texts)
+
+            # Only now drop the old chunks: a failed embedding call above leaves
+            # the previous index intact. Delete and insert share one commit.
+            if replace_existing:
+                self.db.query(EmbeddingChunk).filter(
+                    EmbeddingChunk.note_id == note.id
+                ).delete()
 
             # Store embeddings
             chunks_created = 0
@@ -133,6 +133,7 @@ class EmbeddingService:
             }
 
         except Exception as e:
+            self.db.rollback()
             log_event(self.db, "embedding.failed", {"note_id": note.id, "error": str(e)})
             raise
 
@@ -184,6 +185,7 @@ class EmbeddingService:
             chunk.embedding_model = self.embedding_provider.get_model_name()
             chunk.embedded_at = datetime.now(timezone.utc)
             chunk.is_stale = False
+            self._write_pgvector(chunk.id, embeddings[0])
             re_embedded += 1
 
         self.db.commit()

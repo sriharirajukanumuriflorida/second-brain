@@ -21,6 +21,8 @@ from app.schemas import (
     QuizTopicsResponse,
 )
 from app.services.llm.factory import LLMProviderFactory
+from app.utils.rate_limit import check_rate_limit
+from app.services.workflows.quiz_scoring_workflow import JudgeScoringError
 from app.services.qa_parser_service import extract_qa_pairs
 from app.services.topic_registry import TOPICS, find_by_note_path
 from app.services.workflows.factory import WorkflowFactory
@@ -78,6 +80,7 @@ async def submit_quiz_answer(
     current_user: User = Depends(get_current_user),
 ):
     """Score a quiz answer via the LLM judge and persist the attempt."""
+    check_rate_limit(f"quiz:user:{current_user.id}", settings.rate_limit_per_minute, 60)
     pairs = read_note_qa_pairs(request.note_path)
     matching = next((p for p in pairs if p["question"] == request.question), None)
     if matching is None:
@@ -89,13 +92,16 @@ async def submit_quiz_answer(
         model=settings.llm_model,
     )
     workflow = WorkflowFactory.create_workflow("quiz-scoring", db, llm_provider)
-    result = await workflow.execute({
-        "question": matching["question"],
-        "reference_answer": matching["reference_answer"],
-        "one_liner": matching["one_liner"],
-        "user_answer": request.user_answer,
-        "hints_given": request.hints_given,
-    })
+    try:
+        result = await workflow.execute({
+            "question": matching["question"],
+            "reference_answer": matching["reference_answer"],
+            "one_liner": matching["one_liner"],
+            "user_answer": request.user_answer,
+            "hints_given": request.hints_given,
+        })
+    except JudgeScoringError:
+        raise HTTPException(status_code=502, detail="Could not score this answer automatically. Please try again.")
 
     attempt = QuizAttempt(
         user_id=current_user.id,

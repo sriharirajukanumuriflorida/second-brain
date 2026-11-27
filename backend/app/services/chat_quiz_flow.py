@@ -32,6 +32,7 @@ from app.services.prompts.quiz_judge import (
 from app.services.qa_parser_service import extract_qa_pairs
 from app.services.topic_registry import find_by_label_fragment
 from app.services.workflows.factory import WorkflowFactory
+from app.services.workflows.quiz_scoring_workflow import JudgeScoringError
 from app.utils.logger import log_event
 
 MAX_ASSISTS_PER_QUESTION = 2
@@ -231,13 +232,17 @@ async def _handle_answer_stage(
 
     # attempted_answer
     workflow = WorkflowFactory.create_workflow("quiz-scoring", db, llm_provider)
-    result = await workflow.execute({
-        "question": pending["question"],
-        "reference_answer": pending["reference_answer"],
-        "one_liner": pending.get("one_liner"),
-        "user_answer": message,
-        "hints_given": pending.get("hints_given", []),
-    })
+    try:
+        result = await workflow.execute({
+            "question": pending["question"],
+            "reference_answer": pending["reference_answer"],
+            "one_liner": pending.get("one_liner"),
+            "user_answer": message,
+            "hints_given": pending.get("hints_given", []),
+        })
+    except JudgeScoringError:
+        # Keep the pending question so the user can resend; record nothing.
+        return _reply("I couldn't score that answer just now. Please send it again.", usage=usage)
     usage.input_tokens += result["input_tokens"]
     usage.output_tokens += result["output_tokens"]
     usage.estimated_cost_usd += result["estimated_cost_usd"]

@@ -2,6 +2,7 @@
 Monitoring and health check endpoints.
 """
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.utils.monitoring import MonitoringService
@@ -15,6 +16,8 @@ async def health_check(db: Session = Depends(get_db)):
     """Health check endpoint. Public on purpose (keep-alive pinger hits it)."""
     monitoring = MonitoringService(db)
     status = monitoring.get_health_status()
+    if status.get("status") != "healthy":
+        return JSONResponse(status_code=503, content=status)
     return status
 
 
