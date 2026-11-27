@@ -78,6 +78,12 @@ class Settings(BaseSettings):
     # Set a strong random value in .env / Render. Empty disables generation.
     admin_secret: str = ""
 
+    # Per-principal request limits for endpoints that can spend provider quota.
+    rate_limit_per_minute: int = 10
+    # Daily cap on chat calls that use the server's LLM key (not a user's own).
+    daily_server_chat_limit_user: int = 200
+    daily_server_chat_limit_visitor: int = 30
+
     # Comma-separated GitHub numeric user IDs allowed to log in. Empty means no
     # GitHub login is accepted (fail closed). Existing admin users always pass.
     allowed_github_ids: str = ""

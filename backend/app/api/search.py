@@ -7,7 +7,8 @@ from app.database import get_db
 from app.config import settings
 from app.schemas import SearchResult
 from app.services.search.hybrid_search import HybridSearchService
-from app.services.embeddings.factory import EmbeddingProviderFactory
+from app.services.embeddings.query_embedding import embed_query
+from app.utils.rate_limit import check_rate_limit
 from app.utils.auth import require_read_access, Principal
 from app.utils.logger import log_search_query
 
@@ -29,21 +30,10 @@ async def search_notes(
     and pgvector data exists; otherwise falls back to keyword-only. Pass
     semantic=false to force keyword-only.
     """
+    check_rate_limit(f"search:{principal.key}", settings.rate_limit_per_minute * 3, 60)
     search_service = HybridSearchService(db)
 
-    query_embedding = None
-    if semantic and settings.embedding_api_key and settings.embedding_api_key != "your_embedding_api_key_here":
-        try:
-            provider = EmbeddingProviderFactory.create_provider(
-                settings.embedding_provider,
-                settings.embedding_api_key,
-                settings.embedding_model,
-            )
-            embeddings = await provider.generate_embeddings([query])
-            query_embedding = embeddings[0] if embeddings else None
-        except Exception:
-            # Embedding failure must not break search — degrade to keyword.
-            query_embedding = None
+    query_embedding = await embed_query(query) if semantic else None
 
     results = search_service.search(
         query=query,

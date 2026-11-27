@@ -211,14 +211,14 @@ class LLMConfig(BaseModel):
 class ChatHistoryMessage(BaseModel):
     """A single turn from the client's local history."""
     role: str   # "user" or "assistant"
-    content: str
+    content: str = Field(..., max_length=8000)
 
 
 class ChatRequest(BaseModel):
     """Chat request."""
     message: str = Field(..., min_length=1, max_length=4000)
     session_id: Optional[str] = None          # UUID; created by backend if absent
-    history: List[ChatHistoryMessage] = []    # last N turns from frontend
+    history: List[ChatHistoryMessage] = Field(default=[], max_length=20)    # last N turns from frontend
     llm_config: Optional[LLMConfig] = None   # user-supplied keys override server keys
     allow_web_search: bool = False
 
