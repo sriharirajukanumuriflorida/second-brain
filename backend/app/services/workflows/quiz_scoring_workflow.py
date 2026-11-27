@@ -10,7 +10,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from app.services.workflows.base import BaseWorkflow
 from app.services.llm.base import LLMMessage
@@ -23,8 +23,12 @@ from app.utils.logger import log_event
 REINFORCEMENT_THRESHOLD = 70
 
 
+class JudgeScoringError(Exception):
+    """The judge never returned a valid score; nothing should be recorded."""
+
+
 class _JudgeResult(BaseModel):
-    score: int
+    score: int = Field(ge=0, le=100)
     feedback: str
 
 
@@ -109,13 +113,7 @@ class QuizScoringWorkflow(BaseWorkflow):
                 continue
 
         log_event(self.db, "quiz_judge.malformed_output", {"error": str(last_error)})
-        # Fail safe rather than raise: a malformed judge response shouldn't crash
-        # the chat turn or the quiz route — surface a neutral, clearly-flagged
-        # result instead so the caller can decide how to handle it.
-        return _ScoredResponse(
-            _JudgeResult(score=0, feedback="Could not score this answer automatically — please try again."),
-            response,
-        )
+        raise JudgeScoringError("Judge returned malformed output twice") from last_error
 
     def get_workflow_name(self) -> str:
         return "quiz-scoring"

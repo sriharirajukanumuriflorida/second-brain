@@ -27,7 +27,7 @@ class ClaudeProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str, model: str = "claude-haiku-4-5"):
         super().__init__(api_key, model)
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = anthropic.AsyncAnthropic(api_key=api_key)
 
     async def generate(
         self,
@@ -63,7 +63,7 @@ class ClaudeProvider(BaseLLMProvider):
             except Exception:
                 pass  # gracefully skip web search if SDK is too old
 
-        response = self.client.messages.create(**kwargs)
+        response = await self.client.messages.create(**kwargs)
 
         input_tokens = response.usage.input_tokens
         output_tokens = response.usage.output_tokens
