@@ -1,0 +1,16 @@
+# Build context is the repo root, but the image only needs backend/.
+*
+!backend/
+!backend/requirements.txt
+
+# Never bake secrets, local state or tooling into the image.
+**/.env
+**/.env.*
+**/*.db
+**/.venv
+**/venv
+**/__pycache__
+**/.pytest_cache
+**/vault_clone
+**/.DS_Store
+backend/tests

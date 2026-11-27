@@ -34,6 +34,9 @@ services:
       # See backend/GITHUB_OAUTH_SETUP.md. e.g. https://<app>.vercel.app/auth/callback
       - key: GITHUB_OAUTH_REDIRECT_URI
         sync: false
+      # Comma-separated numeric GitHub user IDs allowed to log in (fail closed if empty).
+      - key: ALLOWED_GITHUB_IDS
+        sync: false
       # Comma-separated allowed frontend origins (your Vercel URL).
       - key: CORS_ALLOW_ORIGINS
         sync: false

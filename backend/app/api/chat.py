@@ -142,6 +142,13 @@ async def chat_usage_account(
     return ChatAccountUsageResponse(provider=request.provider.lower(), usage=usage)
 
 
+def _authorize_session(session: ChatSession, principal: Principal) -> None:
+    """A session belongs to exactly one user, or to anonymous visitors if it has no owner."""
+    owner = principal.user.id if principal.user else None
+    if session.user_id != owner:
+        raise HTTPException(status_code=403, detail="Not allowed to access this chat session.")
+
+
 @router.get("/chat/usage/{session_id}", response_model=ChatUsageResponse)
 async def chat_usage(
     session_id: str,
@@ -152,8 +159,7 @@ async def chat_usage(
     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found.")
-    if principal.user and session.user_id and principal.user.id != session.user_id:
-        raise HTTPException(status_code=403, detail="Not allowed to view this chat session.")
+    _authorize_session(session, principal)
 
     assistant_messages = (
         db.query(ChatMessage)
@@ -237,6 +243,8 @@ async def chat(
             session = ChatSession(id=session_id, user_id=user_id)
             db.add(session)
             db.commit()
+        else:
+            _authorize_session(session, principal)
 
         # Convert history to plain dicts for the workflow
         history = [{"role": m.role, "content": m.content} for m in request.history]
